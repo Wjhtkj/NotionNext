@@ -28,6 +28,8 @@ export const Footer = props => {
           {siteConfig('BEI_AN') && (
             <a
               href={siteConfig('BEI_AN_LINK')}
+              target='_blank'
+              rel='noopener noreferrer'
               className='text-black dark:text-gray-200 no-underline hover:underline ml-4'>
               {siteConfig('BEI_AN')}
             </a>

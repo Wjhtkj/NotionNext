@@ -8,7 +8,7 @@ export function EmptyData(pageId?: string): SiteData {
       title: 'NotionNext BLOG',
       description: '无法获取 Notion 数据',
       pageCover: '/bg_image.jpg',
-      icon: '/avatar.svg',
+      icon: BLOG.AVATAR || '/avatar.png',
       link: BLOG.LINK
     },
     notice: null,

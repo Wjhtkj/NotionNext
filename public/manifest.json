@@ -1,7 +1,7 @@
 {
-  "name": "NotionNext Blog",
-  "short_name": "NotionNext",
-  "description": "A blog powered by NotionNext",
+  "name": "Endless 的博客",
+  "short_name": "Endless",
+  "description": "折腾与分享，记录技术与生活",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

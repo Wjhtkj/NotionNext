@@ -32,10 +32,11 @@ module.exports = {
     process.env.NEXT_PUBLIC_COMMENT_UTTERRANCES_REPO || '', // 你的代码仓库名， 例如 'username/repository'； 更多文档参考 https://utteranc.es/
 
   // giscus @see https://giscus.app/
-  COMMENT_GISCUS_REPO: process.env.NEXT_PUBLIC_COMMENT_GISCUS_REPO || '', // 你的Github仓库名 e.g 'username/repository'
+  COMMENT_GISCUS_REPO:
+    process.env.NEXT_PUBLIC_COMMENT_GISCUS_REPO || 'Wjhtkj/NotionNext', // 你的Github仓库名 e.g 'username/repository'
   COMMENT_GISCUS_REPO_ID: process.env.NEXT_PUBLIC_COMMENT_GISCUS_REPO_ID || '', // 你的Github Repo ID e.g ( 設定完 giscus 即可看到 )
   COMMENT_GISCUS_CATEGORY:
-    process.env.NEXT_PUBLIC_COMMENT_GISCUS_CATEGORY || '', // 你的Github Discussions 內的 Category 名称 e.g 'General' ( 設定完 giscus 即可看到 )
+    process.env.NEXT_PUBLIC_COMMENT_GISCUS_CATEGORY || 'General', // 你的Github Discussions 內的 Category 名称 e.g 'General' ( 設定完 giscus 即可看到 )
   COMMENT_GISCUS_CATEGORY_ID:
     process.env.NEXT_PUBLIC_COMMENT_GISCUS_CATEGORY_ID || '', // 你的Github Discussions 內的 Category ID ( 設定完 giscus 即可看到 )
   COMMENT_GISCUS_MAPPING:

@@ -20,12 +20,12 @@ const CONFIG = {
   HEO_COLOR_TEXT: '#111827',
   HEO_COLOR_TEXT_SECONDARY: '#4b5563',
 
-  HEO_SITE_CREATE_TIME: '2021-09-21', // 建站日期，用于计算网站运行的第几天
+  HEO_SITE_CREATE_TIME: '2026-09-01', // 建站日期，用于计算网站运行的第几天
 
   // 首页顶部通知条滚动内容，如不需要可以留空 []
   HEO_NOTICE_BAR: [
-    { title: '欢迎来到我的博客', url: 'https://blog.tangly1024.com' },
-    { title: '访问文档中心获取更多帮助', url: 'https://docs.tangly1024.com' }
+    { title: '欢迎来到我的博客', url: 'https://wjhtkjwz.eu.org' },
+    { title: '加入QQ群一起交流', url: 'https://qm.qq.com/q/7Wi2AYKgXS' }
   ],
 
   // 英雄区左右侧组件颠倒位置
@@ -34,12 +34,12 @@ const CONFIG = {
   HEO_HERO_BODY_REVERSE: false,
 
   // 英雄区(首页顶部大卡)
-  HEO_HERO_TITLE_1: '分享编程',
-  HEO_HERO_TITLE_2: '与思维认知',
-  HEO_HERO_TITLE_3: 'TANGLY1024.COM',
+  HEO_HERO_TITLE_1: '折腾与分享',
+  HEO_HERO_TITLE_2: '记录技术与生活',
+  HEO_HERO_TITLE_3: 'WJHTKJWZ.EU.ORG',
   HEO_HERO_TITLE_4: '新版上线',
-  HEO_HERO_TITLE_5: 'NotionNext4.0 轻松定制主题',
-  HEO_HERO_TITLE_LINK: 'https://tangly1024.com',
+  HEO_HERO_TITLE_5: '用 Notion 驱动的个人博客',
+  HEO_HERO_TITLE_LINK: 'https://wjhtkjwz.eu.org',
   // 英雄区遮罩文字
   HEO_HERO_COVER_TITLE: '随便逛逛',
 
@@ -70,12 +70,12 @@ const CONFIG = {
   // 个人资料底部按钮
   HEO_INFO_CARD_URL1: '/about',
   HEO_INFO_CARD_ICON1: 'fas fa-user',
-  HEO_INFO_CARD_URL2: 'https://github.com/tangly1024',
+  HEO_INFO_CARD_URL2: 'https://github.com/Wjhtkj',
   HEO_INFO_CARD_ICON2: 'fab fa-github',
   HEO_INFO_CARD_ICON_ORCID: 'fab fa-orcid',
   HEO_INFO_CARD_ICON_CSDN: 'fab fa-csdn',
   HEO_INFO_CARD_ICON_JUEJIN: 'fab fa-juejin',
-  HEO_INFO_CARD_URL3: 'https://www.tangly1024.com',
+  HEO_INFO_CARD_URL3: 'https://wjhtkjwz.eu.org',
   HEO_INFO_CARD_TEXT3: '了解更多',
 
   // 用户技能图标
@@ -141,8 +141,8 @@ const CONFIG = {
   HEO_SOCIAL_CARD: true, // 是否显示右侧，点击加入社群按钮
   HEO_SOCIAL_CARD_TITLE_1: '交流频道',
   HEO_SOCIAL_CARD_TITLE_2: '加入我们的社群讨论分享',
-  HEO_SOCIAL_CARD_TITLE_3: '点击加入社群',
-  HEO_SOCIAL_CARD_URL: 'https://docs.tangly1024.com/article/how-to-question',
+  HEO_SOCIAL_CARD_TITLE_3: '点击加入QQ群',
+  HEO_SOCIAL_CARD_URL: 'https://qm.qq.com/q/7Wi2AYKgXS',
 
   // 底部统计面板文案
   HEO_POST_COUNT_TITLE: '文章数:',
