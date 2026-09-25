@@ -68,9 +68,11 @@ module.exports = {
   // 以下两项需在 GitHub → Settings → Developer settings → OAuth Apps 新建应用后获取，
   // 建议不要直接写在仓库里，改用 Vercel 环境变量 NEXT_PUBLIC_COMMENT_GITALK_CLIENT_ID / _CLIENT_SECRET 注入
   COMMENT_GITALK_CLIENT_ID:
-    process.env.NEXT_PUBLIC_COMMENT_GITALK_CLIENT_ID || '', // e.g 20位ID ， 在gitalk后台获取
+    process.env.NEXT_PUBLIC_COMMENT_GITALK_CLIENT_ID ||
+    '2f91230e24b1cdf159be', // e.g 20位ID ， 在gitalk后台获取
   COMMENT_GITALK_CLIENT_SECRET:
-    process.env.NEXT_PUBLIC_COMMENT_GITALK_CLIENT_SECRET || '', // e.g 40位ID， 在gitalk后台获取
+    process.env.NEXT_PUBLIC_COMMENT_GITALK_CLIENT_SECRET ||
+    'e43abb3ec9b23058ff3c1815045fadcf65392e8a', // e.g 40位ID， 在gitalk后台获取
   COMMENT_GITALK_DISTRACTION_FREE_MODE: false, // 类似facebook的无干扰模式
   COMMENT_GITALK_JS_CDN_URL:
     process.env.NEXT_PUBLIC_COMMENT_GITALK_JS_CDN_URL ||
