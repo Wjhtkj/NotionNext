@@ -7,9 +7,14 @@ module.exports = {
 
   // 悬浮挂件
   WIDGET_PET: process.env.NEXT_PUBLIC_WIDGET_PET || true, // 是否显示宠物挂件
+  // 挂件模型地址 @see https://github.com/xiazeyu/live2d-widget-models
+  // 仅支持 Cubism 2.1 格式（model.json + .moc）；蔚蓝档案等 Spine 格式模型无法用该组件渲染
+  // 常用备选：haru02（红发少女）https://cdn.jsdelivr.net/npm/live2d-widget-model-haru/02/assets/haru02.model.json
+  //          koharu（金发双马尾）https://cdn.jsdelivr.net/npm/live2d-widget-model-koharu/assets/koharu.model.json
+  //          miku（初音）      https://cdn.jsdelivr.net/npm/live2d-widget-model-miku/assets/miku.model.json
   WIDGET_PET_LINK:
     process.env.NEXT_PUBLIC_WIDGET_PET_LINK ||
-    'https://cdn.jsdelivr.net/npm/live2d-widget-model-wanko@1.0.5/assets/wanko.model.json', // 挂件模型地址 @see https://github.com/xiazeyu/live2d-widget-models
+    'https://cdn.jsdelivr.net/npm/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json',
   WIDGET_PET_SWITCH_THEME:
     process.env.NEXT_PUBLIC_WIDGET_PET_SWITCH_THEME || true, // 点击宠物挂件切换博客主题
 
