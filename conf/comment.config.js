@@ -32,8 +32,9 @@ module.exports = {
     process.env.NEXT_PUBLIC_COMMENT_UTTERRANCES_REPO || '', // 你的代码仓库名， 例如 'username/repository'； 更多文档参考 https://utteranc.es/
 
   // giscus @see https://giscus.app/
+  // 已改用 Gitalk 作为评论系统，如需启用 giscus 请填回仓库名（同时需要 REPO_ID 与 CATEGORY_ID）
   COMMENT_GISCUS_REPO:
-    process.env.NEXT_PUBLIC_COMMENT_GISCUS_REPO || 'Wjhtkj/NotionNext', // 你的Github仓库名 e.g 'username/repository'
+    process.env.NEXT_PUBLIC_COMMENT_GISCUS_REPO || '', // 你的Github仓库名 e.g 'username/repository'
   COMMENT_GISCUS_REPO_ID: process.env.NEXT_PUBLIC_COMMENT_GISCUS_REPO_ID || '', // 你的Github Repo ID e.g ( 設定完 giscus 即可看到 )
   COMMENT_GISCUS_CATEGORY:
     process.env.NEXT_PUBLIC_COMMENT_GISCUS_CATEGORY || 'General', // 你的Github Discussions 內的 Category 名称 e.g 'General' ( 設定完 giscus 即可看到 )
@@ -61,9 +62,11 @@ module.exports = {
     process.env.NEXT_PUBLIC_COMMENT_CUSDIS_SCRIPT_SRC || '/js/cusdis.es.js', // change this if you're using self-hosted version
 
   // gitalk评论插件 更多参考 https://gitalk.github.io/
-  COMMENT_GITALK_REPO: process.env.NEXT_PUBLIC_COMMENT_GITALK_REPO || '', // 你的Github仓库名，例如 'NotionNext'
-  COMMENT_GITALK_OWNER: process.env.NEXT_PUBLIC_COMMENT_GITALK_OWNER || '', // 你的用户名 e.g tangly1024
-  COMMENT_GITALK_ADMIN: process.env.NEXT_PUBLIC_COMMENT_GITALK_ADMIN || '', // 管理员用户名、一般是自己 e.g 'tangly1024'
+  COMMENT_GITALK_REPO: process.env.NEXT_PUBLIC_COMMENT_GITALK_REPO || 'NotionNext', // 你的Github仓库名，例如 'NotionNext'
+  COMMENT_GITALK_OWNER: process.env.NEXT_PUBLIC_COMMENT_GITALK_OWNER || 'Wjhtkj', // 你的用户名 e.g tangly1024
+  COMMENT_GITALK_ADMIN: process.env.NEXT_PUBLIC_COMMENT_GITALK_ADMIN || 'Wjhtkj', // 管理员用户名、一般是自己 e.g 'tangly1024'
+  // 以下两项需在 GitHub → Settings → Developer settings → OAuth Apps 新建应用后获取，
+  // 建议不要直接写在仓库里，改用 Vercel 环境变量 NEXT_PUBLIC_COMMENT_GITALK_CLIENT_ID / _CLIENT_SECRET 注入
   COMMENT_GITALK_CLIENT_ID:
     process.env.NEXT_PUBLIC_COMMENT_GITALK_CLIENT_ID || '', // e.g 20位ID ， 在gitalk后台获取
   COMMENT_GITALK_CLIENT_SECRET:
