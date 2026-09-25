@@ -25,7 +25,7 @@ const CONFIG = {
   // 首页顶部通知条滚动内容，如不需要可以留空 []
   HEO_NOTICE_BAR: [
     { title: '欢迎来到我的博客', url: 'https://wjhtkjwz.eu.org' },
-    { title: '加入QQ群一起交流', url: 'https://qm.qq.com/q/7Wi2AYKgXS' }
+    { title: '加入QQ群一起交流', url: 'https://qm.qq.com/q/d57URs0h8I' }
   ],
 
   // 英雄区左右侧组件颠倒位置
@@ -142,7 +142,7 @@ const CONFIG = {
   HEO_SOCIAL_CARD_TITLE_1: '交流频道',
   HEO_SOCIAL_CARD_TITLE_2: '加入我们的社群讨论分享',
   HEO_SOCIAL_CARD_TITLE_3: '点击加入QQ群',
-  HEO_SOCIAL_CARD_URL: 'https://qm.qq.com/q/7Wi2AYKgXS',
+  HEO_SOCIAL_CARD_URL: 'https://qm.qq.com/q/d57URs0h8I',
 
   // 底部统计面板文案
   HEO_POST_COUNT_TITLE: '文章数:',
