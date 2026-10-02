@@ -1387,12 +1387,81 @@ const Style = () => {
     .arona-sidebar a { color: var(--font-color-grey); text-decoration: none; }
     .arona-sidebar a:hover { color: var(--color-blue); }
 
-    /* 公告卡片（置顶） */
-    .arona-sidebar .arona-announce-icon { margin-right: 6px; color: var(--color-blue); }
-    .arona-sidebar .arona-announce .side-body { padding: 12px 16px 14px; }
-    .arona-sidebar .arona-announce .notion-page { font-size: 14px; line-height: 1.7; }
-    .arona-sidebar .arona-announce .notion-page p { margin: 0 0 6px; }
-    .arona-sidebar .arona-announce .notion-link { color: var(--color-blue); }
+    /* ==================================================================
+       侧栏个人信息卡（排布参考 heo 主题 InfoCard.js）
+       问候语+头像 / 昵称 / 公告 / 社交圆钮+了解更多
+       ================================================================== */
+    .arona-sidebar .arona-info-card { padding: 16px; }
+    /* 问候语 + 头像同一行 */
+    .arona-sidebar .arona-info-top {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    }
+    .arona-sidebar .arona-greeting {
+      flex: 1;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--font-color-grey);
+      background-color: rgba(var(--blue-shadow-color), 0.08);
+      border: none;
+      border-radius: 12px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background-color 0.3s var(--transition-curve);
+    }
+    .arona-sidebar .arona-greeting:hover { background-color: rgba(var(--blue-shadow-color), 0.16); }
+    .arona-sidebar .arona-info-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid var(--foreground-color);
+      box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.6);
+    }
+    /* 昵称：大号加粗 */
+    .arona-sidebar .arona-info-name {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 12px 0 0;
+      color: var(--font-color-grey);
+      line-height: 1.2;
+    }
+    /* 公告：卡内的一段正文 */
+    .arona-sidebar .arona-info-notice { margin-top: 8px; }
+    .arona-sidebar .arona-info-notice .notion-page { font-size: 14px; line-height: 1.7; color: var(--font-color-grey); }
+    .arona-sidebar .arona-info-notice .notion-page p { margin: 0 0 6px; }
+    .arona-sidebar .arona-info-notice .notion-page a,
+    .arona-sidebar .arona-info-notice .notion-link { color: var(--color-blue); }
+    /* 底部：社交圆钮 + 了解更多 */
+    .arona-sidebar .arona-info-foot {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-top: 14px;
+    }
+    .arona-sidebar .arona-info-social { display: flex; align-items: center; gap: 8px; }
+    .arona-sidebar .arona-info-social a {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      font-size: 15px;
+      color: var(--font-color-grey);
+      background-color: rgba(var(--blue-shadow-color), 0.1);
+      transition: background-color 0.3s var(--transition-curve), color 0.3s var(--transition-curve);
+    }
+    .arona-sidebar .arona-info-social a:hover {
+      color: #fff;
+      background-color: var(--btn-background);
+    }
+    .arona-sidebar .arona-info-more {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 13px; font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 16px;
+      color: var(--font-color-grey);
+      background-color: rgba(var(--blue-shadow-color), 0.1);
+      transition: background-color 0.3s var(--transition-curve), color 0.3s var(--transition-curve);
+    }
+    .arona-sidebar .arona-info-more:hover { color: #fff; background-color: var(--btn-background); }
 
     /* 加入QQ群卡片 */
     .arona-sidebar .arona-qq-icon { margin-right: 6px; color: var(--color-blue); }

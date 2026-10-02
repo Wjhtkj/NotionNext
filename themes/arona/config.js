@@ -38,6 +38,20 @@ const CONFIG = {
     { icon: 'fab fa-bilibili', url: 'https://space.bilibili.com/1130303811' }
   ],
 
+  // ===== 侧栏个人信息卡（排布参考 heo 主题的 InfoCard）=====
+  // 问候语，点击可随机切换到下一条
+  ARONA_INFO_CARD_GREETINGS: [
+    'Hi，欢迎来到我的小站',
+    '这里记录折腾与分享',
+    '随便逛逛吧',
+    '欢迎来到我的博客'
+  ],
+  // 「了解更多」按钮（不配置 url 则不显示）
+  ARONA_INFO_CARD_MORE: {
+    url: 'https://github.com/wjhtkj',
+    text: '了解更多'
+  },
+
   // ===== 侧栏「加入QQ群」卡片（enable:false 可关闭）=====
   ARONA_QQ_CARD: {
     enable: true,
