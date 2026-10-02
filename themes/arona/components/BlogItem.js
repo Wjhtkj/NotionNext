@@ -1,81 +1,99 @@
 import LazyImage from '@/components/LazyImage'
 import NotionIcon from '@/components/NotionIcon'
+import SmartLink from '@/components/SmartLink'
 import TwikooCommentCount from '@/components/TwikooCommentCount'
 import { siteConfig } from '@/lib/config'
-import SmartLink from '@/components/SmartLink'
 import CONFIG from '../config'
 
 /**
- * 博客列表的单个卡片（AronaNote 风格）
- * 白底圆角 32px + 左侧描边 + 辉光 + 悬停上浮
+ * 文章列表卡片（复刻 AronaNote PostsList.astro 的 .post）
+ * 左侧竖条 + 封面 + 标题 + 元信息 + 标签 + 摘要
  */
 const BlogItem = ({ post }) => {
-  const showPageCover =
-    siteConfig('ARONA_POST_LIST_COVER', true, CONFIG) && post?.pageCoverThumbnail
+  if (!post) return null
 
-  const tags = Array.isArray(post?.tags) ? post.tags : []
-  const dateText = post?.date?.start_date || post?.createdTime
+  const showCover = siteConfig('ARONA_POST_LIST_COVER', true, CONFIG) && post?.pageCoverThumbnail
+  const showReadingTime = siteConfig('ARONA_SHOW_READING_TIME', true, CONFIG)
+  const date = post.publishDay || post.date?.start_date || post.createdTime
+  const tags = Array.isArray(post.tags) ? post.tags : []
+  const pinned = post.pinned > 0
 
   return (
-    <article className='arona-card mb-12'>
-      <div className='card-inner'>
-        {showPageCover && (
-          <div className='card-cover'>
-            <SmartLink href={post?.href} passHref legacyBehavior>
-              <LazyImage
-                src={post?.pageCoverThumbnail}
-                className='w-full h-full'
-                alt={post?.title}
-              />
+    <article className='arona-post-card'>
+      {pinned && <span className='pinned' title='置顶文章' />}
+      <header className='post-header'>
+        {showCover && (
+          <div className='cover-container'>
+            <SmartLink href={post.href || '#'} aria-label={post.title}>
+              <LazyImage src={post.pageCoverThumbnail} alt={`${post.title}-cover`} />
             </SmartLink>
           </div>
         )}
+        <div className='header-content'>
+          <div className='title'>
+            {!showCover && <div className='title-dot' />}
+            <h1 className='name'>
+              <SmartLink href={post.href || '#'}>
+                {siteConfig('POST_TITLE_ICON') && post.pageIcon && <NotionIcon icon={post.pageIcon} />}
+                {post.title}
+              </SmartLink>
+            </h1>
+          </div>
 
-        <div className='card-body'>
-          <h2 className='card-title'>
-            {siteConfig('POST_TITLE_ICON') && <NotionIcon icon={post?.pageIcon} />}
-            <SmartLink href={post?.href}>{post?.title}</SmartLink>
-          </h2>
-
-          <div className='card-meta'>
-            <span>{dateText}</span>
-            <span className='sep' />
-            <span>{siteConfig('AUTHOR')}</span>
-            <TwikooCommentCount post={post} />
-            {post?.category && (
+          <div className='meta-info-bar'>
+            <span className='meta-icon'>
+              <i className='fas fa-clock' />
+            </span>
+            <span>{date}</span>
+            {showReadingTime && post.wordCount ? (
               <>
                 <span className='sep' />
-                <SmartLink href={`/category/${post.category}`} className='hover:underline'>
-                  {post.category}
-                </SmartLink>
+                <span className='meta-icon'>
+                  <i className='fas fa-file-alt' />
+                </span>
+                <span>{post.wordCount} 字</span>
+                <span className='sep' />
+                <span className='meta-icon'>
+                  <i className='fas fa-mug-hot' />
+                </span>
+                <span>预计 {post.readTime || 1} 分钟</span>
+              </>
+            ) : null}
+            {post.category && (
+              <>
+                <span className='sep' />
+                <SmartLink href={`/category/${post.category}`}>{post.category}</SmartLink>
               </>
             )}
+            <TwikooCommentCount post={post} />
           </div>
 
           {tags.length > 0 && (
-            <ul className='card-tags'>
-              {tags.map((t, i) => (
-                <li key={i}>
-                  <SmartLink href={`/tag/${encodeURIComponent(t)}`}>
-                    <i className='fas fa-tag' /> {t}
+            <ul className='tags'>
+              {tags.map(tag => (
+                <li key={tag}>
+                  <SmartLink href={`/tag/${encodeURIComponent(tag)}`}>
+                    <i className='fas fa-tag' />
+                    {tag}
                   </SmartLink>
                 </li>
               ))}
             </ul>
           )}
 
-          {!post?.results && (
-            <p className='card-excerpt line-clamp-3'>{post?.summary}</p>
-          )}
-          {post?.results && (
-            <p className='card-excerpt'>
-              {post.results.map((r, index) => (
-                <span key={index}>{r}</span>
-              ))}
-            </p>
-          )}
+          <div className='excerpt'>
+            {post.results ? (
+              <p>
+                {post.results.map((r, index) => (
+                  <span key={index}>{r}</span>
+                ))}
+              </p>
+            ) : (
+              <p>{post.summary}</p>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
     </article>
   )
 }

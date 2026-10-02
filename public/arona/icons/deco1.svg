@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 359 273">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #4184ab;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6, .cls-7, .cls-8, .cls-9, .cls-10, .cls-11, .cls-12, .cls-13, .cls-14, .cls-15, .cls-16 {
+        stroke-width: 0px;
+      }
+
+      .cls-2 {
+        fill: #91d4fb;
+      }
+
+      .cls-3 {
+        fill: #83c4eb;
+      }
+
+      .cls-4 {
+        fill: #79bce3;
+      }
+
+      .cls-5 {
+        fill: #6db0d7;
+      }
+
+      .cls-6 {
+        fill: #ecf9ff;
+      }
+
+      .cls-7 {
+        fill-rule: evenodd;
+      }
+
+      .cls-7, .cls-10 {
+        fill: #b7e4ff;
+      }
+
+      .cls-8 {
+        fill: #80c3ea;
+      }
+
+      .cls-9 {
+        fill: #aadefe;
+      }
+
+      .cls-11 {
+        fill: #ddf2ff;
+      }
+
+      .cls-17 {
+        fill: url(#_未命名的渐变_8);
+        stroke: #000;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-12 {
+        fill: #c5ecff;
+      }
+
+      .cls-13 {
+        fill: #edf8ff;
+      }
+
+      .cls-14 {
+        fill: #b0defe;
+      }
+
+      .cls-18 {
+        opacity: .6;
+      }
+
+      .cls-19 {
+        mask: url(#mask);
+      }
+
+      .cls-15 {
+        fill: #96d7fe;
+      }
+
+      .cls-16 {
+        fill: #d8f2ff;
+      }
+    </style>
+    <linearGradient id="_未命名的渐变_8" data-name="未命名的渐变 8" x1="212.15" y1="330.03" x2="19.51" y2="36.82" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".07" stop-color="#ccc9c8"/>
+      <stop offset=".16" stop-color="#999492"/>
+      <stop offset=".24" stop-color="#6e6765"/>
+      <stop offset=".32" stop-color="#4d4542"/>
+      <stop offset=".4" stop-color="#362c29"/>
+      <stop offset=".46" stop-color="#271d1a"/>
+      <stop offset=".52" stop-color="#231815"/>
+    </linearGradient>
+    <mask id="mask" x="-189.5" y="-.5" width="549" height="274" maskUnits="userSpaceOnUse">
+      <rect class="cls-17" x="-189" width="548" height="273"/>
+    </mask>
+  </defs>
+  <g class="cls-19">
+    <g class="cls-18">
+      <path class="cls-10" d="M298.72,101h28.76l11.36-17.67-31.09-48.83h-51.25l42.22,66.5Z"/>
+      <path class="cls-10" d="M359,273v-59.5l-39,59.5h39Z"/>
+      <path class="cls-4" d="M283,273h37l39-59.5h-42.6l-35.92,55.66,2.52,3.84Z"/>
+      <path class="cls-10" d="M280.48,269.16l35.92-55.66h-72.39l36.47,55.66Z"/>
+      <path class="cls-8" d="M206,273h72l2.48-3.84-36.47-55.66-38.01,59.5Z"/>
+      <path class="cls-2" d="M316.4,213.5h42.6l-21.19-33.17-21.41,33.17Z"/>
+      <path class="cls-1" d="M278,273h5l-2.52-3.84-2.48,3.84Z"/>
+      <path class="cls-12" d="M301.5,123.5l-57.49,90h72.39l21.41-33.17-36.31-56.83Z"/>
+      <path class="cls-11" d="M359,213.5v-66l-21.19,32.83,21.19,33.17Z"/>
+      <path class="cls-6" d="M359,147.5v-24h-57.5l36.31,56.83,21.19-32.83Z"/>
+      <path class="cls-16" d="M359,123.5v-8.5l-8.91-14h-22.61l-14.48,22.5h46Z"/>
+      <path class="cls-16" d="M338.84,83.33l-11.36,17.67h22.61l-11.25-17.67Z"/>
+      <path class="cls-3" d="M359,101v-49l-20.16,31.33,11.25,17.67h8.91Z"/>
+      <path class="cls-14" d="M359,115v-14h-8.91l8.91,14Z"/>
+      <path class="cls-15" d="M359,52v-17.5h-51.25l31.09,48.83,20.16-31.33Z"/>
+      <path class="cls-5" d="M359,34.5V0l-51.25,34.5h51.25Z"/>
+      <path class="cls-11" d="M141,273h29l-14.45-21.71-14.55,21.71Z"/>
+      <path class="cls-13" d="M170,273h36l38.01-59.5h-63.11l-25.35,37.79,14.45,21.71Z"/>
+      <path class="cls-9" d="M181,123.5l-54.4,84.28,3.8,5.72h50.5l29.23-43.6-29.13-46.4Z"/>
+      <path class="cls-7" d="M141,273h-56.5l6-9.3-32.41-50.2L0,123.5h181l-54.4,84.28,3.8,5.72h50.5l-25.35,37.79-14.55,21.71ZM210.13,169.9l-29.13-46.4h120.5l-57.49,90h-6.51l-27.37-43.6ZM327.48,101l-14.48,22.5-14.28-22.5-42.22-66.5h51.25l31.09,48.83-11.36,17.67Z"/>
+      <path class="cls-9" d="M180.9,213.5h56.6l-27.37-43.6-29.23,43.6Z"/>
+    </g>
+  </g>
+</svg>

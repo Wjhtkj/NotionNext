@@ -1,8 +1,8 @@
 'use client'
 
+import SmartLink from '@/components/SmartLink'
 import { siteConfig } from '@/lib/config'
 import { useGlobal } from '@/lib/global'
-import SmartLink from '@/components/SmartLink'
 import CONFIG from '../config'
 import Announcement from './Announcement'
 import Catalog from './Catalog'
@@ -15,12 +15,11 @@ export const SideBar = props => {
   const { locale } = useGlobal()
   const { latestPosts, categoryOptions, notice, post } = props
 
-  const HIDDEN_NOTIFICATION =
-    post && siteConfig('ARONA_ARTICLE_HIDDEN_NOTIFICATION', false, CONFIG)
+  const HIDDEN_NOTIFICATION = post && siteConfig('ARONA_ARTICLE_HIDDEN_NOTIFICATION', false, CONFIG)
 
   const SideCard = ({ title, children }) => (
-    <aside className='side-card'>
-      <h3>{title}</h3>
+    <aside className='arona-side-card'>
+      <h3 className='side-title'>{title}</h3>
       <div className='side-body'>{children}</div>
     </aside>
   )
@@ -35,28 +34,32 @@ export const SideBar = props => {
       )}
 
       {/* 分类 */}
-      <SideCard title={locale?.COMMON?.CATEGORY || '分类'}>
-        <ul className='list-reset leading-normal'>
-          {categoryOptions?.map(category => (
-            <li key={category.name} className='py-1'>
-              <SmartLink href={`/category/${category.name}`}>
-                {category.name}({category.count})
-              </SmartLink>
-            </li>
-          ))}
-        </ul>
-      </SideCard>
+      {categoryOptions && categoryOptions.length > 0 && (
+        <SideCard title={locale?.COMMON?.CATEGORY || '分类'}>
+          <ul className='arona-side-list'>
+            {categoryOptions?.map(category => (
+              <li key={category.name}>
+                <SmartLink href={`/category/${category.name}`}>
+                  {category.name}({category.count})
+                </SmartLink>
+              </li>
+            ))}
+          </ul>
+        </SideCard>
+      )}
 
       {/* 最新文章 */}
-      <SideCard title={locale?.COMMON?.LATEST_POSTS || '最新文章'}>
-        <ul className='list-reset leading-normal'>
-          {latestPosts?.map(p => (
-            <li key={p.id} className='py-1'>
-              <SmartLink href={`/${p.slug}`}>{p.title}</SmartLink>
-            </li>
-          ))}
-        </ul>
-      </SideCard>
+      {latestPosts && latestPosts.length > 0 && (
+        <SideCard title={locale?.COMMON?.LATEST_POSTS || '最新文章'}>
+          <ul className='arona-side-list'>
+            {latestPosts?.map((p, i) => (
+              <li key={p.id || i}>
+                <SmartLink href={`/${p.slug}`}>{p.title}</SmartLink>
+              </li>
+            ))}
+          </ul>
+        </SideCard>
+      )}
 
       {/* 公告 */}
       {!HIDDEN_NOTIFICATION && <Announcement post={notice} />}

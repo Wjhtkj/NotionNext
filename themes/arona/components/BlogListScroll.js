@@ -45,7 +45,7 @@ export const BlogListScroll = props => {
       }
     }, 500)
   )
-  const showPageCover = siteConfig('EXAMPLE_POST_LIST_COVER', null, CONFIG)
+  const showPageCover = siteConfig('ARONA_POST_LIST_COVER', true, CONFIG)
 
   useEffect(() => {
     window.addEventListener('scroll', scrollTrigger, { passive: true })
@@ -56,19 +56,13 @@ export const BlogListScroll = props => {
   })
 
   return (
-    <div
-      id='posts-wrapper'
-      className={`w-full ${showPageCover ? 'md:pr-2' : 'md:pr-12'}} mb-12`}
-      ref={targetRef}>
+    <div id='posts-wrapper' className='arona-posts-list' ref={targetRef}>
       {postsToShow?.map(post => (
         <BlogItem key={post.id} post={post} />
       ))}
 
-      <div
-        onClick={handleGetMore}
-        className='w-full my-4 py-4 text-center cursor-pointer '>
-        {' '}
-        {hasMore ? locale.COMMON.MORE : `${locale.COMMON.NO_MORE} 😰`}{' '}
+      <div onClick={handleGetMore} className='arona-load-more'>
+        {hasMore ? locale.COMMON.MORE : `${locale.COMMON.NO_MORE} 😰`}
       </div>
     </div>
   )

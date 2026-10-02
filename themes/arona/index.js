@@ -4,102 +4,112 @@ import Comment from '@/components/Comment'
 import replaceSearchResult from '@/components/Mark'
 import NotionPage from '@/components/NotionPage'
 import ShareBar from '@/components/ShareBar'
+import SmartLink from '@/components/SmartLink'
 import { siteConfig } from '@/lib/config'
 import { useGlobal } from '@/lib/global'
 import { isBrowser } from '@/lib/utils'
 import { Transition } from '@headlessui/react'
-import SmartLink from '@/components/SmartLink'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
+import { BackToTop } from './components/BackToTop'
+import { Banner } from './components/Banner'
 import BlogListArchive from './components/BlogListArchive'
 import { BlogListPage } from './components/BlogListPage'
 import { BlogListScroll } from './components/BlogListScroll'
+import Catalog from './components/Catalog'
+import ClickFireworks from './components/ClickFireworks'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { PostLock } from './components/PostLock'
-import { PostMeta } from './components/PostMeta'
+import ReadingProgress from './components/ReadingProgress'
 import SearchInput from './components/SearchInput'
 import { SideBar } from './components/SideBar'
-import TitleBar from './components/TitleBar'
-import ReadingProgress from './components/ReadingProgress'
-import Splash from './components/Splash'
-import ClickFireworks from './components/ClickFireworks'
 import SpinePlayer from './components/SpinePlayer'
+import Splash from './components/Splash'
 import CONFIG from './config'
 import { Style } from './style'
 
 /**
  * 基础布局框架（AronaNote 风格）
- * Header(玻璃导航) -> Banner 横幅 -> 正文(主内容 + 侧边栏) -> Footer(玻璃页脚)
- * 额外挂件：阅读进度条 / 开屏动画 / 点击烟花 / Spine 看板娘
+ * 结构：Splash -> Banner(75vh 英雄区) -> Header(粘性玻璃导航) -> main -> Footer -> 回到顶部
+ * 额外挂件：点击烟花 / 阅读进度条 / Spine 看板娘
  * @returns {JSX.Element}
  * @constructor
  */
 const LayoutBase = props => {
   const { children, post } = props
-  const { onLoading, fullWidth, locale } = useGlobal()
+  const { onLoading, fullWidth, isDarkMode, updateDarkMode } = useGlobal()
 
-  // 各挂件开关
-  const SHOW_SPLASH = siteConfig('ARONA_SPLASH', false, CONFIG)
-  const SHOW_FIREWORKS = siteConfig('ARONA_FIREWORKS', false, CONFIG)
-  const SHOW_SPINE = siteConfig('ARONA_SPINE_ENABLE', false, CONFIG)
-  const SHOW_PROGRESS = siteConfig('ARONA_READING_PROGRESS', false, CONFIG)
+  const SHOW_SPLASH = siteConfig('ARONA_SPLASH', true, CONFIG)
+  const SHOW_FIREWORKS = siteConfig('ARONA_FIREWORKS', true, CONFIG)
+  const SHOW_SPINE = siteConfig('ARONA_SPINE_ENABLE', true, CONFIG)
+  const SHOW_PROGRESS = siteConfig('ARONA_READING_PROGRESS', true, CONFIG)
+  const SHOW_TOTOP = siteConfig('ARONA_BACK_TO_TOP', true, CONFIG)
+
+  // 将 NotionNext 的深色状态同步到 <html> 的 class 与 theme 属性（供 CSS 变量切换）
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.remove(isDarkMode ? 'light' : 'dark')
+    root.classList.add(isDarkMode ? 'dark' : 'light')
+    root.setAttribute('theme', isDarkMode ? 'dark' : 'light')
+  }, [isDarkMode])
+
+  // 首次加载应用已保存的主题偏好（Arona / Plana / System）
+  useEffect(() => {
+    try {
+      const pref = localStorage.getItem('arona-theme-pref')
+      if (pref === 'light') updateDarkMode?.(false)
+      else if (pref === 'dark') updateDarkMode?.(true)
+      else if (pref === 'system') {
+        updateDarkMode?.(window.matchMedia('(prefers-color-scheme: dark)').matches)
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div id='theme-arona' className={`${siteConfig('FONT_STYLE')} arona-root scroll-smooth`}>
       <Style />
 
-      {/* 开屏加载动画 */}
+      {/* 开屏 */}
       {SHOW_SPLASH && <Splash />}
-      {/* 点击烟花特效 */}
+      {/* 点击烟花 */}
       {SHOW_FIREWORKS && <ClickFireworks />}
-      {/* Spine 看板娘 */}
-      {SHOW_SPINE && <SpinePlayer />}
       {/* 阅读进度条 */}
       {SHOW_PROGRESS && <ReadingProgress />}
+      {/* Spine 看板娘 */}
+      {SHOW_SPINE && <SpinePlayer />}
 
-      {/* 玻璃拟态导航 */}
+      {/* Banner 英雄区 */}
+      <Banner {...props} />
+
+      {/* 玻璃导航 */}
       <Header {...props} />
 
-      {/* Banner 横幅（文章页收缩为 50vh） */}
-      <TitleBar {...props} />
-
       {/* 主体 */}
-      <div className='arona-container'>
-        <div className='arona-main'>
-          <Transition
-            show={!onLoading}
-            appear={true}
-            enter='transition ease-in-out duration-700 transform order-first'
-            enterFrom='opacity-0 translate-y-16'
-            enterTo='opacity-100'
-            leave='transition ease-in-out duration-300 transform'
-            leaveFrom='opacity-100 translate-y-0'
-            leaveTo='opacity-0 -translate-y-16'
-            unmount={false}>
-            {props.slotTop}
-            {children}
-          </Transition>
-        </div>
+      <main className='arona-main'>
+        <Transition
+          show={!onLoading}
+          appear={true}
+          enter='transition ease-in-out duration-700 transform'
+          enterFrom='opacity-0 translate-y-16'
+          enterTo='opacity-100'
+          leave='transition ease-in-out duration-300 transform'
+          leaveFrom='opacity-100 translate-y-0'
+          leaveTo='opacity-0 -translate-y-16'
+          unmount={false}>
+          {props.slotTop}
+          {children}
+        </Transition>
+      </main>
 
-        {/* 侧边栏 */}
-        {!fullWidth && (
-          <div className='arona-sidebar'>
-            <SideBar {...props} />
-          </div>
-        )}
-      </div>
-
-      {/* 玻璃拟态页脚 */}
+      {/* 玻璃页脚 */}
       <Footer {...props} />
 
-      {/* 回顶按钮 */}
-      <div
-        className='arona-totop'
-        title={locale?.POST?.TOP}
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-        <i className='fas fa-angle-up' />
-      </div>
+      {/* 回到顶部 */}
+      {SHOW_TOTOP && <BackToTop />}
     </div>
   )
 }
@@ -120,24 +130,32 @@ const LayoutIndex = props => {
  */
 const LayoutPostList = props => {
   const { category, tag } = props
+  const { fullWidth } = useGlobal()
   const LIST_STYLE = siteConfig('ARONA_POST_LIST_STYLE', 'scroll', CONFIG)
 
+  const list =
+    LIST_STYLE === 'page' ? <BlogListPage {...props} /> : <BlogListScroll {...props} />
+
   return (
-    <>
+    <div className='arona-container arona-posts-content'>
       {category && (
-        <div className='pb-12 text-2xl font-bold text-[var(--arona-grey)]'>
-          <i className='mr-1 fas fa-folder-open' />
-          {category}
+        <div className='arona-list-heading'>
+          <i className='fas fa-folder-open' /> {category}
         </div>
       )}
-      {tag && <div className='pb-12 text-2xl font-bold text-[var(--arona-grey)]'>#{tag}</div>}
+      {tag && <div className='arona-list-heading'>#{tag}</div>}
 
-      {LIST_STYLE === 'page' ? (
-        <BlogListPage {...props} />
+      {fullWidth ? (
+        list
       ) : (
-        <BlogListScroll {...props} />
+        <div className='arona-main-flex'>
+          <div className='arona-content-col'>{list}</div>
+          <div className='arona-sidebar'>
+            <SideBar {...props} />
+          </div>
+        </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -148,8 +166,10 @@ const LayoutPostList = props => {
  */
 const LayoutSlug = props => {
   const { post, lock, validPassword } = props
+  const { fullWidth } = useGlobal()
   const router = useRouter()
   const waiting404 = siteConfig('POST_WAITING_TIME_FOR_404') * 1000
+
   useEffect(() => {
     if (!post) {
       setTimeout(() => {
@@ -164,19 +184,38 @@ const LayoutSlug = props => {
       }, waiting404)
     }
   }, [post])
+
+  const hasToc = !fullWidth && post?.toc && post.toc.length > 2
+
   return (
     <>
       {lock ? (
         <PostLock validPassword={validPassword} />
-      ) : post && (
-        <div>
-          <PostMeta post={post} />
-          <div id='article-wrapper'>
-            <NotionPage post={post} />
-            <ShareBar post={post} />
-          </div>
-          <Comment frontMatter={post} />
-        </div>
+      ) : (
+        post && (
+          <>
+            <div className={`arona-post-layout ${hasToc ? '' : 'no-toc'}`}>
+              <article className='arona-view-box'>
+                <div className='arona-content'>
+                  <div id='article-wrapper'>
+                    <NotionPage post={post} />
+                    <ShareBar post={post} />
+                  </div>
+                </div>
+              </article>
+
+              {hasToc && (
+                <aside className='arona-toc-sidebar'>
+                  <Catalog toc={post.toc} />
+                </aside>
+              )}
+            </div>
+
+            <div className='arona-container'>
+              <Comment frontMatter={post} />
+            </div>
+          </>
+        )
       )}
     </>
   )
@@ -199,14 +238,14 @@ const Layout404 = props => {
   }, [])
 
   return (
-    <div className='w-full min-h-[70vh] text-center flex flex-col items-center justify-center'>
-      <div className='text-[var(--arona-grey)]'>
-        <h2 className='inline-block border-r-2 border-[var(--arona-blue)] mr-2 px-3 py-2 align-top text-3xl'>
-          <i className='mr-2 fas fa-spinner animate-spin' />404
+    <div className='arona-404'>
+      <img src='/arona/NotFound.webp' alt='404' className='arona-404-img' />
+      <div className='arona-404-text'>
+        <h2>
+          <i className='mr-2 fas fa-spinner animate-spin' />
+          404
         </h2>
-        <div className='inline-block text-left leading-10 text-xl'>
-          <h2 className='m-0 p-0'>页面无法加载，即将返回首页</h2>
-        </div>
+        <p>页面无法加载，即将返回首页</p>
       </div>
     </div>
   )
@@ -237,12 +276,12 @@ const LayoutSearch = props => {
   }, [router])
 
   return (
-    <>
-      <div className='pb-12'>
+    <div className='arona-container arona-posts-content'>
+      <div className='arona-search-bar'>
         <SearchInput {...props} />
       </div>
       <LayoutPostList {...props} />
-    </>
+    </div>
   )
 }
 
@@ -254,17 +293,11 @@ const LayoutSearch = props => {
 const LayoutArchive = props => {
   const { archivePosts } = props
   return (
-    <>
-      <div className='mb-10 pb-20 md:py-12 p-3 min-h-screen w-full'>
-        {Object.keys(archivePosts).map(archiveTitle => (
-          <BlogListArchive
-            key={archiveTitle}
-            archiveTitle={archiveTitle}
-            archivePosts={archivePosts}
-          />
-        ))}
-      </div>
-    </>
+    <div className='arona-container arona-posts-content'>
+      {Object.keys(archivePosts).map(archiveTitle => (
+        <BlogListArchive key={archiveTitle} archiveTitle={archiveTitle} archivePosts={archivePosts} />
+      ))}
+    </div>
   )
 }
 
@@ -276,22 +309,16 @@ const LayoutArchive = props => {
 const LayoutCategoryIndex = props => {
   const { categoryOptions } = props
   return (
-    <>
-      <div id='category-list' className='duration-200 flex flex-wrap'>
+    <div className='arona-container arona-posts-content'>
+      <div id='category-list' className='arona-tag-cloud'>
         {categoryOptions?.map(category => (
-          <SmartLink
-            key={category.name}
-            href={`/category/${category.name}`}
-            passHref
-            legacyBehavior>
-            <div className='hover:text-white px-5 cursor-pointer py-2 hover:bg-[var(--arona-blue)] rounded-lg text-[var(--arona-grey)]'>
-              <i className='mr-4 fas fa-folder' />
-              {category.name}({category.count})
-            </div>
+          <SmartLink key={category.name} href={`/category/${category.name}`} className='arona-cloud-item'>
+            <i className='fas fa-folder' />
+            {category.name}({category.count})
           </SmartLink>
         ))}
       </div>
-    </>
+    </div>
   )
 }
 
@@ -303,24 +330,19 @@ const LayoutCategoryIndex = props => {
 const LayoutTagIndex = props => {
   const { tagOptions } = props
   return (
-    <>
-      <div id='tags-list' className='duration-200 flex flex-wrap'>
-        {tagOptions.map(tag => (
-          <div key={tag.name} className='p-2'>
-            <SmartLink
-              key={tag}
-              href={`/tag/${encodeURIComponent(tag.name)}`}
-              passHref
-              className='cursor-pointer inline-block rounded hover:bg-[var(--arona-blue)] hover:text-white duration-200 mr-2 py-1 px-2 text-xs whitespace-nowrap text-[var(--arona-grey)] notion-${tag.color}_background'>
-              <div className='font-light'>
-                <i className='mr-1 fas fa-tag' />{' '}
-                {tag.name + (tag.count ? `(${tag.count})` : '')}{' '}
-              </div>
-            </SmartLink>
-          </div>
+    <div className='arona-container arona-posts-content'>
+      <div id='tags-list' className='arona-tag-cloud'>
+        {tagOptions?.map(tag => (
+          <SmartLink
+            key={tag.name}
+            href={`/tag/${encodeURIComponent(tag.name)}`}
+            className={`arona-cloud-item notion-${tag.color}_background`}>
+            <i className='fas fa-tag' />
+            {tag.name + (tag.count ? `(${tag.count})` : '')}
+          </SmartLink>
         ))}
       </div>
-    </>
+    </div>
   )
 }
 

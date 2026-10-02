@@ -305,6 +305,15 @@ export default function SpinePlayer() {
       }
     }
 
+    // 看板娘开关
+    const applySpineEnabled = enabled => {
+      const el = containerRef.current
+      if (el) el.classList.toggle('hidden', !enabled)
+    }
+    const onSpineToggle = evt => {
+      applySpineEnabled(evt?.detail ? evt.detail.enabled : true)
+    }
+
     // 主题切换时切换角色
     const observer = new MutationObserver(() => {
       const want = isDark() ? darkChar : lightChar
@@ -320,6 +329,12 @@ export default function SpinePlayer() {
         el.addEventListener('touchstart', onPlayerClick)
       }
       window.addEventListener('copy', onCopy, true)
+      window.addEventListener('spine-toggle', onSpineToggle)
+      try {
+        applySpineEnabled(localStorage.getItem('spine-enabled') !== 'false')
+      } catch (err) {
+        /* ignore */
+      }
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onMount)
     else onMount()
@@ -328,6 +343,7 @@ export default function SpinePlayer() {
       disposed = true
       observer.disconnect()
       window.removeEventListener('copy', onCopy, true)
+      window.removeEventListener('spine-toggle', onSpineToggle)
       const el = containerRef.current
       if (el) {
         el.removeEventListener('click', onPlayerClick)

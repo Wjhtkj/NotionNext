@@ -26,34 +26,36 @@ export const BlogListPage = props => {
     .replace(/\/$/, '')
     .replace('.html', '')
 
-  const showPageCover = siteConfig('EXAMPLE_POST_LIST_COVER', null, CONFIG)
+  const showPageCover = siteConfig('ARONA_POST_LIST_COVER', true, CONFIG)
 
   return (
-    <div className={`w-full ${showPageCover ? 'md:pr-2' : 'md:pr-12'} mb-12`}>
+    <div className='arona-posts-list'>
       <div id='posts-wrapper'>
         {posts?.map(post => (
           <BlogItem key={post.id} post={post} />
         ))}
       </div>
 
-      <div className='flex justify-between text-xs'>
+      <div className='arona-pagination'>
         <SmartLink
           href={{
             pathname:
-              currentPage - 1 === 1
-                ? `${pagePrefix}/`
-                : `${pagePrefix}/page/${currentPage - 1}`,
+              currentPage - 1 === 1 ? `${pagePrefix}/` : `${pagePrefix}/page/${currentPage - 1}`,
             query: router.query.s ? { s: router.query.s } : {}
           }}
-          className={`${showPrev ? 'bg-black dark:bg-hexo-black-gray' : 'bg-gray pointer-events-none invisible'} text-white no-underline py-2 px-3 rounded`}>
+          className={`arona-page-btn ${showPrev ? '' : 'invisible'}`}>
           {locale.PAGINATION.PREV}
         </SmartLink>
+        <div className='page-numbers'>
+          <span className='page-number active'>{currentPage}</span>
+          <span className='page-number'>/ {totalPage || 1}</span>
+        </div>
         <SmartLink
           href={{
             pathname: `${pagePrefix}/page/${currentPage + 1}`,
             query: router.query.s ? { s: router.query.s } : {}
           }}
-          className={`${showNext ? 'bg-black dark:bg-hexo-black-gray ' : 'bg-gray pointer-events-none invisible'} text-white no-underline py-2 px-3 rounded`}>
+          className={`arona-page-btn ${showNext ? '' : 'invisible'}`}>
           {locale.PAGINATION.NEXT}
         </SmartLink>
       </div>

@@ -1,32 +1,50 @@
 'use client'
 
-import { BeiAnGongAn } from '@/components/BeiAnGongAn'
-import BeiAnSite from '@/components/BeiAnSite'
-import CopyRightDate from '@/components/CopyRightDate'
-import PoweredBy from '@/components/PoweredBy'
-import SmartLink from '@/components/SmartLink'
+import { siteConfig } from '@/lib/config'
 
-export const Footer = props => {
+/**
+ * 玻璃拟态页脚（复刻 AronaNote Footer.astro）
+ * 版权 / RSS / Powered by / 备案 + 页脚 LOGO
+ */
+export const Footer = () => {
+  const author = siteConfig('AUTHOR') || siteConfig('TITLE')
+  const beiAn = siteConfig('BEI_AN')
+  const beiAnLink = siteConfig('BEI_AN_LINK') || 'https://beian.miit.gov.cn/'
+  const year = new Date().getFullYear()
+
   return (
     <footer className='arona-footer'>
       <div className='footer-info'>
         <span className='footer-line'>
-          <CopyRightDate />
-          <span className='separator'> | </span>
-          <SmartLink href='/rss.xml' target='_blank' rel='noopener noreferrer'>
+          © {year} {author}
+          <span className='separator'>|</span>
+          <a href='/rss/feed.xml' target='_blank' rel='noopener noreferrer'>
             RSS
-          </SmartLink>
+          </a>
         </span>
         <div className='footer-line'>
-          <div className='flex flex-wrap'>
-            <BeiAnSite />
-            <BeiAnGongAn />
-          </div>
-          <PoweredBy />
+          <span>
+            Powered by{' '}
+            <a href='https://github.com/NotionNext' target='_blank' rel='noopener noreferrer'>
+              NotionNext
+            </a>{' '}
+            & AronaNote
+          </span>
+          {beiAn && (
+            <>
+              <span className='separator'>|</span>
+              <span className='icp'>
+                <a href={beiAnLink} target='_blank' rel='noopener noreferrer'>
+                  {beiAn}
+                </a>
+              </span>
+            </>
+          )}
         </div>
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className='footer-logo' src='/arona/footLogo.png' alt='logo' />
+      <div className='footer-logo'>
+        <img src='/arona/footLogo.png' alt='logo' />
+      </div>
     </footer>
   )
 }

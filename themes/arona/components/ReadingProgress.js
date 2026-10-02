@@ -3,9 +3,10 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * 阅读进度条（固定在顶部，蓝色填充）
+ * 阅读进度条（复刻 AronaNote Header.astro 的阅读进度条）
+ * 滚动超过 100px 后显示，固定在顶部
  */
-export default function ReadingProgress() {
+const ReadingProgress = () => {
   const barRef = useRef(null)
   const fillRef = useRef(null)
 
@@ -17,17 +18,18 @@ export default function ReadingProgress() {
     let ticking = false
     const update = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop
-      const docHeight =
-        document.documentElement.scrollHeight - document.documentElement.clientHeight
+      const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight
       const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0
       fill.style.width = progress + '%'
       if (scrollTop > 100) bar.classList.add('visible')
       else bar.classList.remove('visible')
-      ticking = false
     }
     const onScroll = () => {
       if (!ticking) {
-        window.requestAnimationFrame(update)
+        window.requestAnimationFrame(() => {
+          update()
+          ticking = false
+        })
         ticking = true
       }
     }
@@ -37,8 +39,10 @@ export default function ReadingProgress() {
   }, [])
 
   return (
-    <div className='arona-reading-progress' ref={barRef}>
-      <div className='arona-reading-progress-fill' ref={fillRef} />
+    <div className='arona-reading-progress' id='arona-reading-progress' ref={barRef}>
+      <div className='fill' id='arona-reading-progress-fill' ref={fillRef} />
     </div>
   )
 }
+
+export default ReadingProgress
