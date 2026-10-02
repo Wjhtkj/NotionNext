@@ -89,12 +89,14 @@ const CONFIG = {
        arona/arona_spr : R_Eye_01 ✓  L_Eye_01 ✓  Head_01 ✗(不存在)  Head_Rot ✓  Head_Back ✓
        plana/NP0035_spr : R_Eye_01 ✗(实际叫 R_Eye_1)  L_Eye_01 ✓  Head_Rot ✓  Head_Back ✗(实际叫 Head_back，小写 b)
 
-     骨架与语音是分开选的，互不绑定：
-       骨架 = 全身版（arona_spr / NP0035_spr），有眼与头骨骼，跟随功能才有效；
-       语音 = aris/kei 的，与下面文本一一对应（沿用作者原始配置，语义正确）。
-     不要换成 arona/plana 目录下的语音：那些是另一批同人录音，仓库里没有配套台词，
-     字幕无法与之对应（且作者原始配置里 aris/kei 的文本也有时长偏差，
-     属源素材固有问题，不是此处引入）。 */
+     骨架 = 全身版（arona_spr / NP0035_spr），有眼与头骨骼，跟随功能才有效；
+     台词 = 按 arona / plana 各自的角色性格重写，与骨架身份一致。
+     语音 = 已整体关闭（原 aris/kei 录音与 arona/plana 的形象不符，
+     arona/plana 自己的录音是另一批无配套台词的素材）。所以下面没有 audio 字段，
+     字幕停留时长由 SpinePlayer.js 按字数估算。
+     动画编号沿用原值，均已实测存在于对应骨架中：
+       arona_spr  : 00 / 04 / 05 / 07 / 10（该骨架共 44 个动画）
+       NP0035_spr : 03 / 17 / 18 / 20 / 99（该骨架只有 00-20 与 99，无 25/29） */
   ARONA_SPINE_CHARACTERS: {
     arona: {
       skelUrl: '/arona/spine_assets/arona/arona_spr.skel',
@@ -107,13 +109,13 @@ const CONFIG = {
       backHeadBone: 'Head_Back',
       eyeRotationAngle: 76.307,
       voiceConfig: [
-        { audio: '/arona/spine_assets/aris/audio/aris_01.ogg', animation: '10', text: '唔——肚子饿了。\n咦……？ \n爱丽丝不吃电池的！' },
-        { audio: '/arona/spine_assets/aris/audio/aris_02.ogg', animation: '00', text: '勇者啊，愿光与你同在。' },
-        { audio: '/arona/spine_assets/aris/audio/aris_03.ogg', animation: '07', text: '爱丽丝也想要提升老师的好感度。' },
-        { audio: '/arona/spine_assets/aris/audio/aris_04.ogg', animation: '05', text: '以这不可动摇的意志……光啊！' },
-        { audio: '/arona/spine_assets/aris/audio/aris_05.ogg', animation: '04', text: '老师？怎么了？' }
+        { animation: '10', text: '肚子饿了……咦？\n等等，我不需要吃电池的！' },
+        { animation: '00', text: '老师，今天也一起加油吧。' },
+        { animation: '07', text: '想把老师的好感度……唔，暂时保密。' },
+        { animation: '05', text: '以这不可动摇的意志——光啊！' },
+        { animation: '04', text: '老师？怎么了？叫我有事吗？' }
       ],
-      copyConfig: { audio: '/arona/spine_assets/aris/audio/aris_copy.mp3', animation: '07', text: '邦邦咔邦！复制了有用的知识呢！' }
+      copyConfig: { animation: '07', text: '邦邦咔邦！有用的知识复制好啦！' }
     },
     plana: {
       skelUrl: '/arona/spine_assets/plana/NP0035_spr.skel',
@@ -126,13 +128,13 @@ const CONFIG = {
       backHeadBone: 'Head_back',
       eyeRotationAngle: 97.331,
       voiceConfig: [
-        { audio: '/arona/spine_assets/kei/audio/kei_01.ogg', animation: '17', text: '请别说我可爱啦！' },
-        { audio: '/arona/spine_assets/kei/audio/kei_02.ogg', animation: '18', text: '……我还没幼稚到那种地步。' },
-        { audio: '/arona/spine_assets/kei/audio/kei_03.ogg', animation: '03', text: '什么事？如果没事的话请不要叫我。' },
-        { audio: '/arona/spine_assets/kei/audio/kei_04.ogg', animation: '99', text: '工作要适度，不过偷懒也得适可而止。' },
-        { audio: '/arona/spine_assets/kei/audio/kei_05.ogg', animation: '20', text: '刚才笑了吧！？\n绝对是笑了对吧！？\n我可全都看到了！' }
+        { animation: '17', text: '……请别再叫我可爱了，笨蛋。' },
+        { animation: '18', text: '我还没幼稚到需要你来提醒的程度。' },
+        { animation: '03', text: '什么事？没事的话别来打扰我工作。' },
+        { animation: '99', text: '努力也要适可而止，偷懒也是。' },
+        { animation: '20', text: '刚才笑了吧？\n我全都看到了哦。' }
       ],
-      copyConfig: { audio: '/arona/spine_assets/kei/audio/kei_copy.ogg', animation: '07', text: '我能帮上忙吗？' }
+      copyConfig: { animation: '07', text: '复制好了……能帮上你就行。' }
     }
   }
 }

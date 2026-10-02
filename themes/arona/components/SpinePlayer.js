@@ -7,8 +7,9 @@ import CONFIG from '../config'
 /**
  * Spine 看板娘（移植自 astro-theme-AronaNote 的 SpinePlayer.vue）
  * 使用 pixi.js v8 + @esotericsoftware/spine-pixi-v8
- * 浅色=arona(aris 资源) / 深色=plana(kei 资源)
- * 支持：待机动画、眨眼、眼睛跟随鼠标、点击播放语音+对话、复制事件
+ * 浅色=arona / 深色=plana（均为全身版骨架）
+ * 支持：待机动画、眨眼、眼睛跟随鼠标、点击说话、复制事件
+ * 无语音播放：台词与骨架角色一致，按字数估算字幕停留时长。
  */
 export default function SpinePlayer() {
   const containerRef = useRef(null)
@@ -39,6 +40,10 @@ export default function SpinePlayer() {
     let eyeBones = {}
     let headBones = {}
     let eyeAngle = 76.307
+    /* 字幕的关闭定时器。用 ref 持有：playRandomVoice / onCopy 可能交叠
+       （连点或复制与点击几乎同时），只清最后一个会把前一个漏掉，
+       导致字幕提前消失或永远不消失。 */
+    const dialogTimers = new Set()
     /* initSpine 是 async，内部有多个 await（动态 import、fetch、skel 解析），
        而 onMount 与暗色切换的 MutationObserver 可能几乎同时触发它。
        没有守卫时两次调用会交错：后一次的 cleanup() 放掉了前一次的 renderer，
@@ -47,34 +52,28 @@ export default function SpinePlayer() {
        用单调递增的 token 判定「我还是最新那次吗」，不是最新就立即收尾退出。 */
     let initToken = 0
 
-    // 音频管理
-    const AudioCtx = window.AudioContext || window.webkitAudioContext
-    let audioCtx = null
-    let gainNode = null
-    const audioCache = new Map()
-    const initAudio = () => {
-      if (!audioCtx && AudioCtx) {
-        audioCtx = new AudioCtx()
-        gainNode = audioCtx.createGain()
-        gainNode.gain.value = 0.5
-        gainNode.connect(audioCtx.destination)
-      }
+    /* 无语音时，按字数估算字幕停留时间。
+       中文口语约 4.2 字/秒，行数多时逐行累加阅读时间；
+       上下限各留 2.4s / 9s，避免一句话一闪而过或念完还杵着不走。 */
+    const estimateDialogMs = text => {
+      const lines = String(text || '').split('\n').filter(Boolean)
+      const chars = lines.reduce((n, l) => n + l.length, 0)
+      const readMs = (chars / 4.2) * 1000
+      const lineMs = lines.length * 700
+      return Math.min(9000, Math.max(2400, readMs + lineMs + 600))
     }
-    const loadAudio = async url => {
-      if (audioCache.has(url)) return audioCache.get(url)
-      const res = await fetch(url)
-      const buf = await audioCtx.decodeAudioData(await res.arrayBuffer())
-      audioCache.set(url, buf)
-      return buf
-    }
-    const playAudio = buf =>
+    const waitDialog = ms =>
       new Promise(resolve => {
-        const src = audioCtx.createBufferSource()
-        src.buffer = buf
-        src.connect(gainNode)
-        src.onended = () => resolve()
-        src.start()
+        const t = setTimeout(() => {
+          dialogTimers.delete(t)
+          resolve()
+        }, ms)
+        dialogTimers.add(t)
       })
+    const clearDialogTimers = () => {
+      dialogTimers.forEach(clearTimeout)
+      dialogTimers.clear()
+    }
 
     const isDark = () =>
       document.documentElement.classList.contains('dark') ||
@@ -95,7 +94,7 @@ export default function SpinePlayer() {
         app = null
         spine = null
       }
-      audioCache.clear()
+      clearDialogTimers()
     }
 
     const updateDialogPos = () => {
@@ -284,8 +283,6 @@ export default function SpinePlayer() {
         })
         myResizeObserver.observe(containerRef.current)
         resizeObserver = myResizeObserver
-
-        initAudio()
       } catch (err) {
         /* 过期的那次不必报警，它是被新一轮主动取消的 */
         if (!isStale()) {
@@ -310,20 +307,19 @@ export default function SpinePlayer() {
       do { idx = Math.floor(Math.random() * list.length) } while (idx === lastIndex && list.length > 1)
       lastIndex = idx
       const pair = list[idx]
-      /* 字幕先出现，音频并行加载：反过来的话字幕会晚几百毫秒才冒出来，
-         看起来像「先听见声音、后出字」，与语音对不上。 */
       showDialogText(pair.text)
       try {
         if (spine && pair.animation) animationState.setAnimation(2, pair.animation, false)
-        const buf = await loadAudio(pair.audio)
-        await playAudio(buf)
+        await waitDialog(estimateDialogMs(pair.text))
         isPlaying = false
         isDialogPlaying = false
         eyeDisabled = false
         if (spine) animationState.setEmptyAnimation(2, 0)
         hideDialog()
       } catch (e) {
-        isPlaying = false; isDialogPlaying = false; eyeDisabled = false
+        isPlaying = false
+        isDialogPlaying = false
+        eyeDisabled = false
         hideDialog()
       }
     }
@@ -337,21 +333,23 @@ export default function SpinePlayer() {
     const onCopy = async () => {
       if (!currentCharCfg?.copyConfig || isPlaying) return
       const cc = currentCharCfg.copyConfig
-      isPlaying = true; isDialogPlaying = true; eyeDisabled = true
+      isPlaying = true
+      isDialogPlaying = true
+      eyeDisabled = true
       resetBonesFn && resetBonesFn()
       try {
         showDialogText(cc.text)
         if (spine && cc.animation) animationState.setAnimation(2, cc.animation, false)
-        if (cc.audio) {
-          const buf = await loadAudio(cc.audio)
-          await playAudio(buf)
-        }
-        await new Promise(r => setTimeout(r, 2000))
-        isPlaying = false; isDialogPlaying = false; eyeDisabled = false
+        await waitDialog(Math.max(2400, estimateDialogMs(cc.text)))
+        isPlaying = false
+        isDialogPlaying = false
+        eyeDisabled = false
         if (spine) animationState.setEmptyAnimation(2, 0)
         hideDialog()
       } catch {
-        isPlaying = false; isDialogPlaying = false; eyeDisabled = false
+        isPlaying = false
+        isDialogPlaying = false
+        eyeDisabled = false
         hideDialog()
       }
     }
