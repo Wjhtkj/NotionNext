@@ -161,16 +161,26 @@ export default function SpinePlayer() {
       eyeAngle = cfg.eyeRotationAngle || 76.307
       cleanup()
       try {
+        /* 关键：SkeletonBinary / AtlasAttachmentLoader 必须从 @esotericsoftware/spine-pixi-v8 取，
+           它与 Spine 共用同一份 spine-core 实例。若从 @esotericsoftware/spine-core 直连引入，
+           当 npm 解析出两份不同版本的 spine-core（4.2.x 与 4.3.x 的二进制格式互不兼容，
+           资源是 4.2.33）时，解析结果与 Spine 的类身份不一致，角色会静默加载失败。 */
         const PIXI = await import('pixi.js')
         const spinePixi = await import('@esotericsoftware/spine-pixi-v8')
-        const spineCore = await import('@esotericsoftware/spine-core')
         if (disposed || !containerRef.current) return
 
         const scaleFactor = 2
+        /* width:auto 的定高容器在内容为空时 clientWidth 为 0，会让 canvas 宽度为 0 而完全不可见。
+           先用容器高度占位，待骨架解析出真实宽高比后再修正（下面有 ResizeObserver 兜底）。 */
+        const initH = containerRef.current.clientHeight || 300
+        const initW = containerRef.current.clientWidth || initH
+        if (!containerRef.current.clientWidth) {
+          containerRef.current.style.width = initW + 'px'
+        }
         app = new PIXI.Application()
         await app.init({
-          width: containerRef.current.clientWidth * scaleFactor,
-          height: containerRef.current.clientHeight * scaleFactor,
+          width: initW * scaleFactor,
+          height: initH * scaleFactor,
           backgroundAlpha: 0,
           antialias: true,
           resolution: 1
@@ -179,8 +189,11 @@ export default function SpinePlayer() {
 
         const atlas = await PIXI.Assets.load(cfg.atlasUrl)
         const res = await fetch(cfg.skelUrl)
+        if (!res.ok) {
+          throw new Error(`骨架文件加载失败 HTTP ${res.status}：${cfg.skelUrl}`)
+        }
         const data = new Uint8Array(await res.arrayBuffer())
-        const parser = new spineCore.SkeletonBinary(new spineCore.AtlasAttachmentLoader(atlas))
+        const parser = new spinePixi.SkeletonBinary(new spinePixi.AtlasAttachmentLoader(atlas))
         const skeletonData = parser.readSkeletonData(data)
 
         spine = new spinePixi.Spine({ skeletonData, autoUpdate: true })
@@ -245,7 +258,7 @@ export default function SpinePlayer() {
 
         initAudio()
       } catch (err) {
-        console.error('[arona-spine] init failed:', err)
+        console.error(`[arona-spine] 角色「${charKey}」初始化失败：`, err, '\n  skelUrl =', cfg.skelUrl)
       }
     }
 

@@ -303,6 +303,72 @@ const Style = () => {
     }
     .arona-header .menu li a.active { font-weight: bold; }
 
+    /* 带子菜单的父项（如 Notion 的「往期整理」） */
+    .arona-header .menu li.has-sub { position: relative; }
+    .arona-header .menu li.has-sub > a { display: flex; align-items: center; gap: 6px; }
+    .arona-header .menu li.has-sub > a .sub-arrow {
+      font-size: 12px;
+      transition: transform 0.3s var(--transition-curve);
+    }
+    .arona-header .menu li.has-sub:hover > a .sub-arrow { transform: rotate(90deg); }
+    .arona-header .menu li.has-sub > .sub-menu {
+      position: absolute;
+      top: calc(100% - 4px);
+      left: 50%;
+      transform: translateX(-50%) translateY(6px);
+      min-width: 168px;
+      padding: 6px;
+      list-style: none;
+      margin: 0;
+      gap: 2px;
+      flex-direction: column;
+      background-color: var(--foreground-color);
+      border: solid 2px var(--foreground-color);
+      border-radius: 16px;
+      box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.8);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.25s var(--transition-curve), transform 0.25s var(--transition-curve), visibility 0.25s;
+      z-index: 130;
+    }
+    .arona-header .menu li.has-sub:hover > .sub-menu,
+    .arona-header .menu li.has-sub:focus-within > .sub-menu {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+    .arona-header .menu li.has-sub > .sub-menu li a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: normal;
+      white-space: nowrap;
+      text-align: left;
+    }
+    .arona-header .menu li.has-sub > .sub-menu li a .sub-icon { font-size: 13px; }
+
+    /* 触屏设备没有 hover，子菜单改为常驻缩进显示，保证可点 */
+    @media (hover: none) {
+      .arona-header .menu li.has-sub > .sub-menu {
+        position: static;
+        transform: none;
+        min-width: 0;
+        margin: 0 0 4px 12px;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        box-shadow: none;
+        border-width: 0 0 0 2px;
+        border-radius: 0 12px 12px 0;
+      }
+      .arona-header .menu li.has-sub > a .sub-arrow { transform: rotate(90deg); }
+    }
+
     .arona-header .hamburger {
       display: flex;
       flex-direction: column;
@@ -930,7 +996,13 @@ const Style = () => {
       cursor: pointer;
       transition: opacity 0.3s ease, bottom 0.3s ease;
     }
-    .arona-spine-wrap canvas { display: block; }
+    /* canvas 必须由 CSS 拉伸到容器尺寸：pixi 为了高清把 canvas 属性尺寸放大到 2 倍，
+       若不加 !important，canvas 会以 2 倍像素尺寸显示（且容器宽度为 auto 时宽度为 0 而完全不可见）。 */
+    .arona-spine-wrap canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
     @media (max-width: 1440px) { .arona-spine-wrap { opacity: 0.7; } }
     @media (max-width: 768px) { .arona-spine-wrap { display: none; } }
     .arona-spine-wrap.hidden { display: none !important; }
@@ -1299,6 +1371,32 @@ const Style = () => {
     .arona-sidebar .arona-side-list li { padding: 4px 0; font-size: 14px; }
     .arona-sidebar a { color: var(--font-color-grey); text-decoration: none; }
     .arona-sidebar a:hover { color: var(--color-blue); }
+
+    /* 公告卡片（置顶） */
+    .arona-sidebar .arona-announce-icon { margin-right: 6px; color: var(--color-blue); }
+    .arona-sidebar .arona-announce .side-body { padding: 12px 16px 14px; }
+    .arona-sidebar .arona-announce .notion-page { font-size: 14px; line-height: 1.7; }
+    .arona-sidebar .arona-announce .notion-page p { margin: 0 0 6px; }
+    .arona-sidebar .arona-announce .notion-link { color: var(--color-blue); }
+
+    /* 加入QQ群卡片 */
+    .arona-sidebar .arona-qq-icon { margin-right: 6px; color: var(--color-blue); }
+    .arona-sidebar .arona-qq-text { margin: 0 0 10px; font-size: 14px; line-height: 1.6; }
+    .arona-sidebar .arona-qq-btn {
+      display: block;
+      text-align: center;
+      padding: 8px 12px;
+      border-radius: 16px;
+      font-size: 14px;
+      color: #fff;
+      background-color: var(--btn-background);
+      transition: background-color 0.3s var(--transition-curve), transform 0.2s;
+    }
+    .arona-sidebar .arona-qq-btn:hover {
+      background-color: var(--btn-hover);
+      color: #fff;
+      transform: translateY(-1px);
+    }
 
     /* ==================================================================
        阅读进度条

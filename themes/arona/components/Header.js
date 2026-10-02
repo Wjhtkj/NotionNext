@@ -93,13 +93,37 @@ export const Header = props => {
 
         <span className='menu'>
           <ul>
-            {links.map((link, index) => (
-              <li key={index}>
-                <SmartLink href={link.href} className={isActive(link.href) ? 'active' : ''}>
-                  {link.name}
-                </SmartLink>
-              </li>
-            ))}
+            {links.map((link, index) => {
+              /* Notion 的父级菜单（如「往期整理」）自身 href 常见为 "/#" 或 "#"，
+                 真正可点的是它的 subMenus（如「历史归档」→ /archive）。
+                 这里把父项的 href 兜底到第一个子菜单，避免点击后停在原地。 */
+              const subs = Array.isArray(link.subMenus) ? link.subMenus.filter(s => s && s.show !== false && s.name) : []
+              /* Notion 的父级菜单（如「往期整理」）自身 href 常写成 "/#"、"#"、"/"，是个死链；
+                 真正可点的是它的 subMenus（如「历史归档」→ /archive）。
+                 若父项是死链，则把 href 兜底到第一个子菜单，点击父项也能真正跳转。 */
+              const isDead = /^\/?#?$/.test(link.href || '')
+              const parentHref = subs.length > 0 ? (isDead ? subs[0].href : link.href) : link.href
+              return (
+                <li key={index} className={subs.length > 0 ? 'has-sub' : undefined}>
+                  <SmartLink href={parentHref} className={isActive(link.href) ? 'active' : ''}>
+                    {subs.length > 0 && <i className={`${link.icon || 'fas fa-angle-right'} sub-arrow`} aria-hidden='true' />}
+                    {link.name}
+                  </SmartLink>
+                  {subs.length > 0 && (
+                    <ul className='sub-menu'>
+                      {subs.map((sub, i) => (
+                        <li key={sub.id || i}>
+                          <SmartLink href={sub.href} className={isActive(sub.href) ? 'active' : ''}>
+                            {sub.icon && <i className={`${sub.icon} sub-icon`} aria-hidden='true' />}
+                            {sub.name}
+                          </SmartLink>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </span>
 

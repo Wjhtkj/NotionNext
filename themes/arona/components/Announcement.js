@@ -1,31 +1,28 @@
+'use client'
+
 import { useGlobal } from '@/lib/global'
 import dynamic from 'next/dynamic'
 
 const NotionPage = dynamic(() => import('@/components/NotionPage'))
 
 /**
- * 公告模块
- * 其实就是一篇文章
- * @param {*} param0
- * @returns
+ * 公告模块（AronaNote 玻璃卡片样式）
+ * 其实就是一篇文章（Notion 中类型为 Notice 的页面）
  */
-const Announcement = ({ post, className }) => {
+const Announcement = ({ post }) => {
   const { locale } = useGlobal()
   if (!post || Object.keys(post).length === 0) {
     return <></>
   }
   return (
-    <aside className='rounded shadow overflow-hidden mb-6'>
-      <h3 className='text-sm bg-gray-100 text-gray-700 dark:bg-hexo-black-gray dark:text-gray-200 py-3 px-4 dark:border-hexo-black-gray border-b'>
-        <i className='mr-2 fas fa-bullhorn' />
-        {post?.title || locale.COMMON.ANNOUNCEMENT}
+    <aside className='arona-side-card arona-announce'>
+      <h3 className='side-title'>
+        <i className='fas fa-bullhorn arona-announce-icon' aria-hidden='true' />
+        {post?.title || locale?.COMMON?.ANNOUNCEMENT || '公告'}
       </h3>
-
-      {post && (
-        <div id='announcement-content'>
-          <NotionPage post={post} className='text-center' />
-        </div>
-      )}
+      <div className='side-body' id='announcement-content'>
+        <NotionPage post={post} className='text-center' />
+      </div>
     </aside>
   )
 }
