@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * 开屏加载动画（复刻 AronaNote Splash.astro）
+ * 开屏加载动画（复刻 Endless647 Splash.astro）
  * 三角形矩阵 + 中央 LED 圆圈呼吸，随机 1.2~1.5s 后淡出
  * 每次会话只播放一次（sessionStorage）。
  */

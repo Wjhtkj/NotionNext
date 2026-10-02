@@ -9,7 +9,7 @@ import CONFIG from '../config'
 import { DropdownMenu } from './DropdownMenu'
 
 /**
- * 玻璃拟态顶部导航（复刻 AronaNote Header.astro）
+ * 玻璃拟态顶部导航（复刻 Endless647 Header.astro）
  * LOGO + 导航菜单 + 汉堡按钮 + 下拉面板
  * 菜单沿用 NotionNext 的既有菜单体系（含自定义菜单 customNav / customMenu）。
  */

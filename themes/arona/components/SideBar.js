@@ -8,7 +8,7 @@ import Announcement from './Announcement'
 import Catalog from './Catalog'
 
 /**
- * 侧边栏（AronaNote 风格玻璃卡片）
+ * 侧边栏（Endless647 风格玻璃卡片）
  * 顺序：公告 / 目录 / 分类 / 最新文章 / 加入QQ群
  */
 export const SideBar = props => {

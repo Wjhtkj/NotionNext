@@ -6,7 +6,7 @@ import CONFIG from '../config'
 
 /**
  * 首页 Banner 中央的玻璃欢迎框
- * 复刻 AronaNote WelcomeBox.astro + WelcomeBoxController.vue
+ * 复刻 Endless647 WelcomeBox.astro + WelcomeBoxController.vue
  * - 大标题显示站点简介
  * - 头像 / 站名 / 一言（打字机）/ 社交图标
  * - 鼠标视差（rotateX / rotateY）+ 渐变角度跟随

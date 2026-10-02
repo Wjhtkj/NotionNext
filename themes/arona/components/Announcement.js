@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 const NotionPage = dynamic(() => import('@/components/NotionPage'))
 
 /**
- * 公告模块（AronaNote 玻璃卡片样式）
+ * 公告模块（Endless647 玻璃卡片样式）
  * 其实就是一篇文章（Notion 中类型为 Notice 的页面）
  */
 const Announcement = ({ post }) => {

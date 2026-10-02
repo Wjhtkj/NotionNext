@@ -3,7 +3,7 @@
 import { siteConfig } from '@/lib/config'
 
 /**
- * 玻璃拟态页脚（复刻 AronaNote Footer.astro）
+ * 玻璃拟态页脚（复刻 Endless647 Footer.astro）
  * 版权 / RSS / Powered by / 备案 + 页脚 LOGO
  */
 export const Footer = () => {
@@ -28,7 +28,7 @@ export const Footer = () => {
             <a href='https://github.com/NotionNext' target='_blank' rel='noopener noreferrer'>
               NotionNext
             </a>{' '}
-            & AronaNote
+            & Endless647
           </span>
           {beiAn && (
             <>

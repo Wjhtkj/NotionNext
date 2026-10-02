@@ -39,6 +39,13 @@ export default function SpinePlayer() {
     let eyeBones = {}
     let headBones = {}
     let eyeAngle = 76.307
+    /* initSpine 是 async，内部有多个 await（动态 import、fetch、skel 解析），
+       而 onMount 与暗色切换的 MutationObserver 可能几乎同时触发它。
+       没有守卫时两次调用会交错：后一次的 cleanup() 放掉了前一次的 renderer，
+       但前一次仍会继续往下执行并把自己的 spine 挂到已被替换的 app.stage 上，
+       结果两个 skeleton 共用同一 stage —— 视觉上就是「两个看板娘重叠」。
+       用单调递增的 token 判定「我还是最新那次吗」，不是最新就立即收尾退出。 */
+    let initToken = 0
 
     // 音频管理
     const AudioCtx = window.AudioContext || window.webkitAudioContext
@@ -156,10 +163,15 @@ export default function SpinePlayer() {
     const initSpine = async charKey => {
       const cfg = characters[charKey]
       if (!cfg || !containerRef.current) return
-      currentCharCfg = cfg
-      currentChar = charKey
-      eyeAngle = cfg.eyeRotationAngle || 76.307
+      /* 领取本次令牌；cleanup() 会让上一轮持有的令牌失效 */
+      const myToken = ++initToken
+      const isStale = () => disposed || myToken !== initToken
       cleanup()
+      /* 资源全部先放局部变量，确认不过期后再写回共享状态，
+         避免过期的那次污染当前角色。 */
+      let myApp = null
+      let mySpine = null
+      let myResizeObserver = null
       try {
         /* 关键：SkeletonBinary / AtlasAttachmentLoader 必须从 @esotericsoftware/spine-pixi-v8 取，
            它与 Spine 共用同一份 spine-core 实例。若从 @esotericsoftware/spine-core 直连引入，
@@ -167,7 +179,7 @@ export default function SpinePlayer() {
            资源是 4.2.33）时，解析结果与 Spine 的类身份不一致，角色会静默加载失败。 */
         const PIXI = await import('pixi.js')
         const spinePixi = await import('@esotericsoftware/spine-pixi-v8')
-        if (disposed || !containerRef.current) return
+        if (isStale() || !containerRef.current) return
 
         const scaleFactor = 2
         /* width:auto 的定高容器在内容为空时 clientWidth 为 0，会让 canvas 宽度为 0 而完全不可见。
@@ -177,44 +189,60 @@ export default function SpinePlayer() {
         if (!containerRef.current.clientWidth) {
           containerRef.current.style.width = initW + 'px'
         }
-        app = new PIXI.Application()
-        await app.init({
+        myApp = new PIXI.Application()
+        await myApp.init({
           width: initW * scaleFactor,
           height: initH * scaleFactor,
           backgroundAlpha: 0,
           antialias: true,
           resolution: 1
         })
-        containerRef.current.appendChild(app.canvas)
+        if (isStale() || !containerRef.current) {
+          myApp.destroy(true, { children: true, texture: true })
+          return
+        }
+        containerRef.current.appendChild(myApp.canvas)
 
         const atlas = await PIXI.Assets.load(cfg.atlasUrl)
+        if (isStale()) return
         const res = await fetch(cfg.skelUrl)
         if (!res.ok) {
           throw new Error(`骨架文件加载失败 HTTP ${res.status}：${cfg.skelUrl}`)
         }
         const data = new Uint8Array(await res.arrayBuffer())
+        if (isStale()) return
         const parser = new spinePixi.SkeletonBinary(new spinePixi.AtlasAttachmentLoader(atlas))
         const skeletonData = parser.readSkeletonData(data)
+        if (isStale()) return
 
-        spine = new spinePixi.Spine({ skeletonData, autoUpdate: true })
-        spine.skeleton.updateWorldTransform(1)
-        bounds = spine.skeleton.getBoundsRect()
-        skeletonAspect = (bounds.width || 500) / (bounds.height || 500)
+        mySpine = new spinePixi.Spine({ skeletonData, autoUpdate: true })
+        mySpine.skeleton.updateWorldTransform(1)
+        const myBounds = mySpine.skeleton.getBoundsRect()
+        const myAspect = (myBounds.width || 500) / (myBounds.height || 500)
         const ch = containerRef.current.clientHeight
-        const cw = ch * skeletonAspect
+        const cw = ch * myAspect
         containerRef.current.style.width = cw + 'px'
 
-        const s = ch / (bounds.height || 500)
-        spine.scale.set(s * scaleFactor)
-        spine.position.set(
-          -bounds.x * s * scaleFactor,
-          (ch - (bounds.y + bounds.height) * s) * scaleFactor
+        const s = ch / (myBounds.height || 500)
+        mySpine.scale.set(s * scaleFactor)
+        mySpine.position.set(
+          -myBounds.x * s * scaleFactor,
+          (ch - (myBounds.y + myBounds.height) * s) * scaleFactor
         )
-        spine.batched = false
-        app.stage.addChild(spine)
+        mySpine.batched = false
+        myApp.stage.addChild(mySpine)
 
-        skeleton = spine.skeleton
-        animationState = spine.state
+        /* 到这里确认本次仍是最新一次，才提交到共享状态 */
+        app = myApp
+        spine = mySpine
+        bounds = myBounds
+        skeletonAspect = myAspect
+        currentCharCfg = cfg
+        currentChar = charKey
+        eyeAngle = cfg.eyeRotationAngle || 76.307
+
+        skeleton = mySpine.skeleton
+        animationState = mySpine.state
         if (cfg.idleAnimationName) animationState.setAnimation(0, cfg.idleAnimationName, true)
 
         const fb = cfg.frontHeadBone ? skeleton.findBone(cfg.frontHeadBone) : null
@@ -240,25 +268,33 @@ export default function SpinePlayer() {
         blink()
 
         // ResizeObserver
-        resizeObserver = new ResizeObserver(entries => {
+        myResizeObserver = new ResizeObserver(entries => {
           for (const entry of entries) {
             const nh = entry.contentRect.height
-            const nw = nh * skeletonAspect
+            const nw = nh * myAspect
             if (containerRef.current) containerRef.current.style.width = nw + 'px'
-            if (app && spine && bounds) {
-              app.renderer.resize(nw * scaleFactor, nh * scaleFactor)
-              const ns = nh / (bounds.height || 500)
-              spine.scale.set(ns * scaleFactor)
-              spine.position.set(-bounds.x * ns * scaleFactor, (nh - (bounds.y + bounds.height) * ns) * scaleFactor)
+            if (myApp && mySpine) {
+              myApp.renderer.resize(nw * scaleFactor, nh * scaleFactor)
+              const ns = nh / (myBounds.height || 500)
+              mySpine.scale.set(ns * scaleFactor)
+              mySpine.position.set(-myBounds.x * ns * scaleFactor, (nh - (myBounds.y + myBounds.height) * ns) * scaleFactor)
             }
             if (dialog.show) updateDialogPos()
           }
         })
-        resizeObserver.observe(containerRef.current)
+        myResizeObserver.observe(containerRef.current)
+        resizeObserver = myResizeObserver
 
         initAudio()
       } catch (err) {
-        console.error(`[arona-spine] 角色「${charKey}」初始化失败：`, err, '\n  skelUrl =', cfg.skelUrl)
+        /* 过期的那次不必报警，它是被新一轮主动取消的 */
+        if (!isStale()) {
+          console.error(`[arona-spine] 角色「${charKey}」初始化失败：`, err, '\n  skelUrl =', cfg.skelUrl)
+        }
+        if (isStale()) {
+          if (myResizeObserver) myResizeObserver.disconnect()
+          if (myApp) myApp.destroy(true, { children: true, texture: true })
+        }
       }
     }
 
@@ -274,10 +310,12 @@ export default function SpinePlayer() {
       do { idx = Math.floor(Math.random() * list.length) } while (idx === lastIndex && list.length > 1)
       lastIndex = idx
       const pair = list[idx]
+      /* 字幕先出现，音频并行加载：反过来的话字幕会晚几百毫秒才冒出来，
+         看起来像「先听见声音、后出字」，与语音对不上。 */
+      showDialogText(pair.text)
       try {
-        const buf = await loadAudio(pair.audio)
-        showDialogText(pair.text)
         if (spine && pair.animation) animationState.setAnimation(2, pair.animation, false)
+        const buf = await loadAudio(pair.audio)
         await playAudio(buf)
         isPlaying = false
         isDialogPlaying = false
@@ -327,7 +365,11 @@ export default function SpinePlayer() {
       applySpineEnabled(evt?.detail ? evt.detail.enabled : true)
     }
 
-    // 主题切换时切换角色
+    // 主题切换时切换角色。
+    // 注意：currentChar 只在 initSpine 真正加载成功后才更新（见 isStale 守卫），
+    // 若像以前那样在 initSpine 开头就赋值，那么「快速来回切换两次」时
+    // 第二次会因 want === currentChar 而跳过，但第一次的 init 已被作废，
+    // 结果角色实际上一只都没加载出来。
     const observer = new MutationObserver(() => {
       const want = isDark() ? darkChar : lightChar
       if (want !== currentChar) initSpine(want)
@@ -338,8 +380,9 @@ export default function SpinePlayer() {
       initSpine(isDark() ? darkChar : lightChar)
       const el = containerRef.current
       if (el) {
+        /* 只监听 click：移动端触摸也会合成 click，若同时绑 touchstart
+           一次点按会进来两次，白白消耗一次随机数并重置动画。 */
         el.addEventListener('click', onPlayerClick)
-        el.addEventListener('touchstart', onPlayerClick)
       }
       window.addEventListener('copy', onCopy, true)
       window.addEventListener('spine-toggle', onSpineToggle)

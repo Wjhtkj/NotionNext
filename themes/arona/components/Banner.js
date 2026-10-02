@@ -8,7 +8,7 @@ import { PostBanner } from './PostBanner'
 import { WelcomeBox } from './WelcomeBox'
 
 /**
- * Siri 风格波浪（移植自 AronaNote Banner.astro 的 SiriWave 类）
+ * Siri 风格波浪（移植自 Endless647 Banner.astro 的 SiriWave 类）
  */
 class SiriWave {
   constructor(canvas) {

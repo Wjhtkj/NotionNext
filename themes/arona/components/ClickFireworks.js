@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * 点击烟花特效（移植自 AronaNote Cursor.astro 的点击特效）
+ * 点击烟花特效（移植自 Endless647 Cursor.astro 的点击特效）
  * 点击处生成三角碎片 + 弧形拖尾
  * 可通过「鼠标特效」开关（localStorage: cursor-effect-enabled / 事件 cursor-effect-toggle）控制
  */

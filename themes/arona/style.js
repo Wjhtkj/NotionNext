@@ -2,7 +2,7 @@
 import CONFIG from './config'
 import { themeConsoleStyle } from '@/lib/themeConsoleStyle'
 /**
- * AronaNote 主题全局样式
+ * Endless647 主题全局样式
  * 逐项复刻 astro-theme-AronaNote 的 src/styles/{vars,index,icons}.less
  * 与各组件 <style> 中的样式，颜色全部走 CSS 变量，深色模式只切换变量。
  * 深色选择器：NotionNext 使用 html.dark（Tailwind 约定）。
@@ -90,7 +90,7 @@ const Style = () => {
       --search-item-bg: #fff;
       --search-item-shadow: rgba(69, 73, 78, 0.548);
 
-      /* AronaNote 未定义、被 TOC 等组件引用 */
+      /* Endless647 未定义、被 TOC 等组件引用 */
       --color-text-primary: var(--font-color-grey);
       --color-text-secondary: var(--font-color-grey);
       --color-border: rgba(var(--blue-shadow-color), 0.2);
@@ -174,7 +174,7 @@ const Style = () => {
       line-height: 1.7;
     }
 
-    /* 用 :where() 把 ID 的权重归零，保持与 AronaNote 原始 less 相同的层叠优先级
+    /* 用 :where() 把 ID 的权重归零，保持与 Endless647 原始 less 相同的层叠优先级
        （否则 #theme-arona a 会盖掉所有组件内基于 class 的链接样式） */
     :where(#theme-arona) a {
       color: var(--color-blue);
@@ -879,7 +879,7 @@ const Style = () => {
     .arona-load-more { width: 100%; margin: 16px 0; padding: 16px 0; text-align: center; cursor: pointer; color: var(--font-color-grey); }
     .arona-load-more:hover { color: var(--color-blue); }
 
-    /* 主内容 + 侧边栏（列表页布局；AronaNote 首页为单列，此处仅在非全宽时启用侧栏） */
+    /* 主内容 + 侧边栏（列表页布局；Endless647 首页为单列，此处仅在非全宽时启用侧栏） */
     .arona-main-flex { display: flex; gap: 24px; align-items: flex-start; }
     .arona-content-col { flex: 1; min-width: 0; }
     .arona-sidebar { width: 288px; flex-shrink: 0; }
@@ -983,12 +983,20 @@ const Style = () => {
 
     /* ==================================================================
        Spine 看板娘
-       ================================================================== */
+       ==================================================================
+       z-index 层级（数字越大越靠上）：
+         9999 Splash 开屏        —— 必须在看板娘之上，加载完才淡出
+         9998 点击烟花画布       —— 在看板娘之上，烟花要从角色身上散开
+         999  移动端目录按钮     —— 浮层控件，压住角色无妨
+         300  看板娘             —— 抬到 200 以上，避免被搜索弹窗(200)、
+                                   回到顶部(100)、下拉子菜单(130)、导航(100) 压住
+         200  搜索弹窗           —— 弹窗打开时应盖住页面内容，但看板娘是常驻交互物
+       原来用的是 120/121，会被搜索弹窗(200)与下拉子菜单(130)盖住。 */
     .arona-spine-wrap {
       position: fixed;
       bottom: 25px;
       left: 3%;
-      z-index: 120;
+      z-index: 300;
       height: 45vh;
       min-height: 300px;
       width: auto;
@@ -1008,7 +1016,7 @@ const Style = () => {
     .arona-spine-wrap.hidden { display: none !important; }
     .arona-spine-dialog {
       position: fixed;
-      z-index: 121;
+      z-index: 301;
       pointer-events: none;
       background-color: rgba(255, 255, 255, 0.92);
       color: #000;
@@ -1028,7 +1036,9 @@ const Style = () => {
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      z-index: 200;
+      /* 400：搜索是模态弹窗，必须盖过看板娘(300)与它的对话框(301)，
+         否则角色会浮在遮罩之上。 */
+      z-index: 400;
       display: flex;
       justify-content: center;
       align-items: center;

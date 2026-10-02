@@ -5,7 +5,7 @@ import CONFIG from '../config'
 
 /**
  * 文章页 Banner 内容：标题 + 发布/更新/字数/阅读时长
- * 复刻 AronaNote BlogPost.astro 的 .post-banner
+ * 复刻 Endless647 BlogPost.astro 的 .post-banner
  */
 export const PostBanner = ({ post }) => {
   if (!post) return null

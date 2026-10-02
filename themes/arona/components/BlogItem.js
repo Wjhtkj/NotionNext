@@ -6,7 +6,7 @@ import { siteConfig } from '@/lib/config'
 import CONFIG from '../config'
 
 /**
- * 文章列表卡片（复刻 AronaNote PostsList.astro 的 .post）
+ * 文章列表卡片（复刻 Endless647 PostsList.astro 的 .post）
  * 左侧竖条 + 封面 + 标题 + 元信息 + 标签 + 摘要
  */
 const BlogItem = ({ post }) => {

@@ -30,7 +30,7 @@ import CONFIG from './config'
 import { Style } from './style'
 
 /**
- * 基础布局框架（AronaNote 风格）
+ * 基础布局框架（Endless647 风格）
  * 结构：Splash -> Banner(75vh 英雄区) -> Header(粘性玻璃导航) -> main -> Footer -> 回到顶部
  * 额外挂件：点击烟花 / 阅读进度条 / Spine 看板娘
  * @returns {JSX.Element}

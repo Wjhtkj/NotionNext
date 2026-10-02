@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import CONFIG from '../config'
 
 /**
- * 导航右侧的下拉面板（复刻 AronaNote DropdownMenu.astro）
+ * 导航右侧的下拉面板（复刻 Endless647 DropdownMenu.astro）
  * 主题选择（Arona / Plana / System）、搜索、鼠标特效开关、看板娘开关
  */
 export const DropdownMenu = ({ show }) => {

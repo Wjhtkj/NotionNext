@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * 阅读进度条（复刻 AronaNote Header.astro 的阅读进度条）
+ * 阅读进度条（复刻 Endless647 Header.astro 的阅读进度条）
  * 滚动超过 100px 后显示，固定在顶部
  */
 const ReadingProgress = () => {

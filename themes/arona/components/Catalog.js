@@ -3,7 +3,7 @@ import { uuidToId } from 'notion-utils'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 /**
- * 目录导航组件（AronaNote 风格）
+ * 目录导航组件（Endless647 风格）
  * 结构：白底圆角卡片 + 「目录」标题 + 二/三级条目
  * - h2 为顶层条目（加粗、未激活时淡化）
  * - h3 收进所属 h2 的子列表，仅当前 h2 展开（对齐 TableOfContents.astro）

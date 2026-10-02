@@ -1,5 +1,5 @@
 /**
- * AronaNote 主题配置
+ * Endless647 主题配置
  * 参考 astro-theme-AronaNote 的 config.yml / consts.ts
  * 所有项均可在 blog.config.js 中以同名键覆盖（优先级：Notion 配置表 > 环境变量 > blog.config.js > 本文件）。
  */
@@ -70,7 +70,15 @@ const CONFIG = {
      眼神跟随 / 头部转动会静默失效（不报错，只是没反应）。
      以下名字均由 spine-core 4.2.108 实测解析得出：
        arona/arona_spr : R_Eye_01 ✓  L_Eye_01 ✓  Head_01 ✗(不存在)  Head_Rot ✓  Head_Back ✓
-       plana/NP0035_spr : R_Eye_01 ✗(实际叫 R_Eye_1)  L_Eye_01 ✓  Head_Rot ✓  Head_Back ✗(实际叫 Head_back，小写 b) */
+       plana/NP0035_spr : R_Eye_01 ✗(实际叫 R_Eye_1)  L_Eye_01 ✓  Head_Rot ✓  Head_Back ✗(实际叫 Head_back，小写 b)
+
+     文本与语音的对应关系（务必注意）：
+     语音是 arona/plana 真人配音，仓库里没有配套台词表（参考站也从没写过全身版台词），
+     下面的文本是**按各条语音的实际时长反推字数**写的占位台词，
+     长度与录音接近，字幕不会明显念不完或提前结束。
+     若要换成真实台词，请照着时长改：中文语速约每秒 4~5 字。
+       arona_01 3.49s / 02 4.18s / 03 5.70s / 04 5.64s / 05 2.95s / 06 7.60s
+       plana_01 9.12s / 02 6.43s / 03 1.33s / 04 5.74s / 05 1.67s */
   ARONA_SPINE_CHARACTERS: {
     arona: {
       skelUrl: '/arona/spine_assets/arona/arona_spr.skel',
@@ -83,11 +91,12 @@ const CONFIG = {
       backHeadBone: 'Head_Back',
       eyeRotationAngle: 76.307,
       voiceConfig: [
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_01.ogg', animation: '10', text: '唔——肚子饿了。\n咦……？ \n爱丽丝不吃电池的！' },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_02.ogg', animation: '00', text: '勇者啊，愿光与你同在。' },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_03.ogg', animation: '07', text: '爱丽丝也想要提升老师的好感度。' },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_04.ogg', animation: '05', text: '以这不可动摇的意志……光啊！' },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_05.ogg', animation: '04', text: '老师？怎么了？' }
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_01.ogg', animation: '10', text: '唔——肚子饿了，有吃的吗？' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_02.ogg', animation: '00', text: '勇者啊，愿光与你同在，一路都要小心哦。' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_03.ogg', animation: '07', text: '今天也请多指教，有什么需要我帮忙的吗？' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_04.ogg', animation: '05', text: '以这不可动摇的意志……光啊！照亮前方的道路吧。' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_05.ogg', animation: '04', text: '老师？怎么了？叫我有什么事吗？' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_06.ogg', animation: '12', text: '观测记录已全部同步完毕，随时可以出发去下一个地方了。' }
       ],
       copyConfig: { animation: '07', text: '邦邦咔邦！复制了有用的知识呢！' }
     },
@@ -102,11 +111,11 @@ const CONFIG = {
       backHeadBone: 'Head_back',
       eyeRotationAngle: 97.331,
       voiceConfig: [
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_01.ogg', animation: '17', text: '请别说我可爱啦！' },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_02.ogg', animation: '19', text: '……我还没幼稚到那种地步。' },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_03.ogg', animation: '03', text: '什么事？如果没事的话请不要叫我。' },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_04.ogg', animation: '99', text: '工作要适度，不过偷懒也得适可而止。' },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_05.ogg', animation: '20', text: '刚才笑了吧！？\n绝对是笑了对吧！？\n我可全都看到了！' }
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_01.ogg', animation: '17', text: '请别说我可爱啦！我可是分析AI，才不是什么需要人陪的小孩子。' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_02.ogg', animation: '19', text: '……我还没幼稚到那种地步，少拿那种眼光看我。' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_03.ogg', animation: '03', text: '什么事？' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_04.ogg', animation: '99', text: '工作要适度，不过偷懒也得适可而止，别再熬太晚。' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_05.ogg', animation: '20', text: '你笑什么笑。' }
       ],
       copyConfig: { animation: '07', text: '我能帮上忙吗？' }
     }

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * 回到顶部按钮（复刻 AronaNote BackToTop.astro）
+ * 回到顶部按钮（复刻 Endless647 BackToTop.astro）
  * 滚动超过 600px 显示；无滚动条则隐藏。
  */
 export const BackToTop = () => {
