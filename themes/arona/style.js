@@ -1004,6 +1004,9 @@ const Style = () => {
       cursor: pointer;
       transition: opacity 0.3s ease, bottom 0.3s ease;
     }
+    /* 窄屏时角色降透明度，避免挡住正文内容；鼠标移上去恢复不透明。
+       参考站原版有这条 :hover 恢复规则，复刻时漏了，导致窄屏下角色永远是半透明的。 */
+    .arona-spine-wrap:hover { opacity: 1 !important; }
     /* canvas 必须由 CSS 拉伸到容器尺寸：pixi 为了高清把 canvas 属性尺寸放大到 2 倍，
        若不加 !important，canvas 会以 2 倍像素尺寸显示（且容器宽度为 auto 时宽度为 0 而完全不可见）。 */
     .arona-spine-wrap canvas {
@@ -1011,7 +1014,9 @@ const Style = () => {
       width: 100% !important;
       height: 100% !important;
     }
-    @media (max-width: 1440px) { .arona-spine-wrap { opacity: 0.7; } }
+    /* 窄屏降透明度避免挡正文，悬停恢复为 1（见上面的 :hover）。
+       参考站是 0.7，这里用 0.85 —— 0.7 在浅色玻璃背景上明显发灰。 */
+    @media (max-width: 1440px) { .arona-spine-wrap { opacity: 0.85; } }
     @media (max-width: 768px) { .arona-spine-wrap { display: none; } }
     .arona-spine-wrap.hidden { display: none !important; }
     .arona-spine-dialog {
