@@ -158,10 +158,30 @@ export default function SpinePlayer() {
       dialogTimers.clear()
     }
 
-    const isDark = () =>
-      document.documentElement.classList.contains('dark') ||
-      document.documentElement.getAttribute('theme') === 'dark' ||
-      document.documentElement.getAttribute('data-theme') === 'dark'
+    /* 角色（arona / plana）跟随站点深浅色，但**用户在下拉菜单里选的主题优先**。
+       为什么要额外读 localStorage，而不是只看 <html> 的 class：
+       下拉菜单的 Arona / Plana 选项写的是 arona-theme-pref，
+       而它同步进 <html> class 要等 LayoutBase 的 useEffect 跑完 ——
+       React 的 effect 执行顺序是「子组件先、父组件后」，
+       本组件（SpinePlayer 挂在 LayoutBase 内部）的 useEffect 一定更早跑，
+       此时读 class 拿到的还是 NotionNext initDarkMode 算出的系统偏好值。
+       结果就是：站点明明是明亮主题，看板娘却先加载一整套深色的 plana 骨架，
+       要等用户手动切一次主题才被 MutationObserver 纠正。
+       这里先读保存的偏好，与下拉菜单保持单一事实来源。 */
+    const isDark = () => {
+      try {
+        const pref = localStorage.getItem('arona-theme-pref')
+        if (pref === 'light') return false
+        if (pref === 'dark') return true
+      } catch (e) {
+        /* 隐私模式下读不到，退回看 <html> 属性 */
+      }
+      return (
+        document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('theme') === 'dark' ||
+        document.documentElement.getAttribute('data-theme') === 'dark'
+      )
+    }
 
     /* ===== 响应式布局 =====
        两个骨架的实测比例不同：arona_spr 1011x2128 = 1:2.10，
