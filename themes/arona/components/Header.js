@@ -20,32 +20,52 @@ export const Header = props => {
   const [open, setOpen] = useState(false)
   const navRef = useRef(null)
 
-  /* 顶部菜单只保留三项：首页 / 往期整理（含三个子菜单）/ 关于。
-     搜索、归档、分类、标签四项按用户要求移除 —— 这几页并未下掉，
-     仍可通过站内链接或直接输网址访问，只是不在顶栏露出入口。
-     移除后菜单项从 7 项降到 3 项，窄屏更容易放下，
-     也顺带让 .menu-scroll（横向滚动降级）几乎不会触发。 */
+  /* 顶部菜单。
+     ★ 关键：默认菜单（首页 / 关于）不是唯一来源 ——
+       CUSTOM_MENU 默认为 true，此时以 Notion 后台配置的 customMenu 为主，
+       默认项只作为「补充」追加上去。
+       若写成 `links = props.customMenu` 整体替换，前面 push 的项会全部失效：
+       改了 buildLinks 但线上毫无变化，就是踩过这个坑。
+
+     搜索 / 归档 / 分类 / 标签四项按用户要求移除：这些页并未下掉，
+     仍可通过站内链接或直接输网址访问，只是不在顶栏露出入口。 */
   const buildLinks = () => {
-    let links = [
-      { icon: 'fas fa-home', name: locale?.NAV?.HOME || '首页', href: '/', show: true },
-      {
-        /* 「关于」指向站内 /about。
-           不加 external —— SmartLink 的外链判定是
-           `startsWith('http') && !startsWith(LINK)`，
-           本站 LINK 就是 https://wjhtkjwz.eu.org，
-           所以这个绝对地址会被识别为站内链接、走 Next 路由（单页导航，
-           不整页刷新）。这正是想要的行为。
-           href 用绝对地址而非 /about：与站点其他外链写法一致，
-           即使将来换域名也不至于指向错误主机。 */
-        icon: 'fas fa-circle-info',
-        name: '关于',
-        href: 'https://wjhtkjwz.eu.org/about',
-        show: true
-      }
-    ]
+    /* 「关于」指向站内 /about。
+       不加 external —— SmartLink 的外链判定是
+       `startsWith('http') && !startsWith(LINK)`，
+       本站 LINK 就是 https://wjhtkjwz.eu.org，
+       所以这个绝对地址会被识别为站内链接、走 Next 路由（单页导航，
+       不整页刷新）。这正是想要的行为。
+       href 用绝对地址而非 /about：与站点其他外链写法一致，
+       即使将来换域名也不至于指向错误主机。 */
+    const aboutLink = {
+      icon: 'fas fa-circle-info',
+      name: '关于',
+      href: 'https://wjhtkjwz.eu.org/about',
+      show: true
+    }
+
+    let links = [{ icon: 'fas fa-home', name: locale?.NAV?.HOME || '首页', href: '/', show: true }]
+
     if (props.customNav) links = links.concat(props.customNav)
-    if (siteConfig('CUSTOM_MENU') && props.customMenu) links = props.customMenu
-    return (links || []).filter(l => l && l.show !== false)
+
+    if (siteConfig('CUSTOM_MENU') && props.customMenu) {
+      /* 走 Notion 后台菜单：整体替换首页，仅在末尾补「关于」 */
+      links = links.concat(props.customMenu, [aboutLink])
+    } else {
+      links.push(aboutLink)
+    }
+
+    /* 兜底去重：Notion 后台若已配了同名项（如「关于」），
+       追加后会出现两项，href 相同更会让用户以为点不动。 */
+    const seen = new Set()
+    return (links || []).filter(l => {
+      if (!l || l.show === false) return false
+      const key = typeof l.href === 'string' && l.href ? l.href : JSON.stringify(l)
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
   }
 
   const links = buildLinks()
