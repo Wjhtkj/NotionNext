@@ -615,7 +615,9 @@ const Style = () => {
         height: calc(100vh - 64px);
         height: calc(100dvh - 64px);
         z-index: 98;
-        background: rgba(0, 0, 0, 0.35);
+        /* 0.35 偏淡：banner 是大图，遮罩压不太住，抽屉区域和背景
+           分层不明显。加深到 0.55，既能压住底图又不至于让整页发闷。 */
+        background: rgba(0, 0, 0, 0.55);
         -webkit-backdrop-filter: blur(2px);
         backdrop-filter: blur(2px);
         animation: arona-fade-in 0.25s ease;
@@ -638,9 +640,16 @@ const Style = () => {
         -webkit-overflow-scrolling: touch;
         margin: 0;
         padding: 8px clamp(12px, 4vw, 20px) 20px;
-        background: var(--triangle-background);
-        -webkit-backdrop-filter: var(--blur-val);
-        backdrop-filter: var(--blur-val);
+        /* --triangle-background 是三层半透明渐变、没有不透明底色。
+           桌面端菜单是横向窄条、后面紧贴 nav 自己的底色，看不出来；
+           但抽屉是覆盖在 banner 上的大面板，半透明底会让 banner 的大字
+           透过来和菜单文字叠在一起（线上截图实测「首页/友链/Github」
+           几乎读不出来）。所以这里补一层不透明底色再叠渐变。 */
+        background-color: var(--general-background-color);
+        background-image: var(--triangle-background);
+        /* 不再叠 backdrop-filter —— 上面已经有不透明底色，
+           模糊背后已经看不见的东西，纯属多余的合成开销。
+           而且它会让本元素成为子元素的 fixed 包含块（见上面注释）。 */
         border-bottom: 2px solid var(--foreground-color);
         box-shadow: 0 8px 24px rgba(var(--blue-shadow-color), 0.5);
         visibility: hidden;
