@@ -89,14 +89,26 @@ const CONFIG = {
        arona/arona_spr : R_Eye_01 ✓  L_Eye_01 ✓  Head_01 ✗(不存在)  Head_Rot ✓  Head_Back ✓
        plana/NP0035_spr : R_Eye_01 ✗(实际叫 R_Eye_1)  L_Eye_01 ✓  Head_Rot ✓  Head_Back ✗(实际叫 Head_back，小写 b)
 
-     骨架 = 全身版（arona_spr / NP0035_spr），有眼与头骨骼，跟随功能才有效；
-     台词 = 按 arona / plana 各自的角色性格重写，与骨架身份一致。
-     语音 = 已整体关闭（原 aris/kei 录音与 arona/plana 的形象不符，
-     arona/plana 自己的录音是另一批无配套台词的素材）。所以下面没有 audio 字段，
-     字幕停留时长由 SpinePlayer.js 按字数估算。
-     动画编号沿用原值，均已实测存在于对应骨架中：
-       arona_spr  : 00 / 04 / 05 / 07 / 10（该骨架共 44 个动画）
-       NP0035_spr : 03 / 17 / 18 / 20 / 99（该骨架只有 00-20 与 99，无 25/29） */
+     骨架 = 全身版（arona_spr / NP0035_spr），有眼与头骨骼，跟随功能才有效。
+     语音 = 各角色自有录音（arona/audio/zh、plana/audio/zh），与形象一致。
+
+     ★ 人工配对指南（config 里每条都标了实测时长与建议字数）
+     ----------------------------------------------------
+     1. 每条 voice 就是「一个音频 + 一句台词 + 一个动画」的绑定。
+        新增一条就往数组里加一个对象；少一个逗号会导致整个配置解析失败。
+     2. 先用「试听工具」听音频、照着写台词（本地打开 tools/spine-voice.html）。
+        工具会同时显示该音频的实测时长与建议字数区间，不用自己算。
+     3. 写完把 text 填进来，duration 改成你实测的秒数（可选，但强烈建议填：
+        填了它，字幕严格跟着录音走；不填则由 SpinePlayer.js 按字数估算，
+        会有几百毫秒误差）。
+     4. 标记 ok: true 表示这条已人工确认；配好后可以删掉所有 ok 与 duration 字段，
+        只留 audio / animation / text 长期使用。
+     5. 配错了直接改 text；想禁用某条就整条删掉，或设 skip: true。
+        某条若没有 audio 字段，则只显示字幕不播声音（静默台词）。
+
+     ⚠ 不要出现两处 audio 指向同一个文件（会重复听到同一句）。
+     ⚠ 不要把 arona/plana 的骨架配上 aris/kei 的音频 —— 形象与声音对不上。 */
+
   ARONA_SPINE_CHARACTERS: {
     arona: {
       skelUrl: '/arona/spine_assets/arona/arona_spr.skel',
@@ -108,13 +120,21 @@ const CONFIG = {
       frontHeadBone: 'Head_Rot',
       backHeadBone: 'Head_Back',
       eyeRotationAngle: 76.307,
+      /* 实测 setup pose 包围盒，供 SpinePlayer 初始化与响应式布局使用。
+         arona_spr = 1011 x 2128（1:2.10） */
+      boundsHeight: 2128,
+      aspectRatio: 0.4752,
+      /* 时长为实测值（Ogg granule / 采样率），建议字数按中文口语 3.2~5.2 字/秒 */
       voiceConfig: [
-        { animation: '10', text: '肚子饿了……咦？\n等等，我不需要吃电池的！' },
-        { animation: '00', text: '老师，今天也一起加油吧。' },
-        { animation: '07', text: '想把老师的好感度……唔，暂时保密。' },
-        { animation: '05', text: '以这不可动摇的意志——光啊！' },
-        { animation: '04', text: '老师？怎么了？叫我有事吗？' }
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_01.ogg', duration: 3.49, chars: '20 字以内', animation: '10', text: '', ok: false },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_02.ogg', duration: 4.18, chars: '14~21 字', animation: '00', text: '', ok: false },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_03.ogg', duration: 5.7, chars: '19~29 字', animation: '07', text: '', ok: false },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_04.ogg', duration: 5.64, chars: '19~29 字', animation: '05', text: '', ok: false },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_05.ogg', duration: 2.95, chars: '10~15 字', animation: '04', text: '', ok: false },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_06.ogg', duration: 7.6, chars: '25~39 字', animation: '03', text: '', ok: false }
       ],
+      /* arona 目录下没有 copy 语音（只有 aris 有 aris_copy.mp3），
+         所以复制事件用静默台词：只出字幕不播声音。 */
       copyConfig: { animation: '07', text: '邦邦咔邦！有用的知识复制好啦！' }
     },
     plana: {
@@ -127,13 +147,19 @@ const CONFIG = {
       frontHeadBone: 'Head_Rot',
       backHeadBone: 'Head_back',
       eyeRotationAngle: 97.331,
+      /* 实测 setup pose 包围盒。NP0035_spr = 1154 x 2216（1:1.92），
+         比 arona 宽约 9%，所以响应式必须按各自比例单独算，不能共用一个宽度 */
+      boundsHeight: 2216,
+      aspectRatio: 0.5207,
+      /* NP0035_spr 可用动画只有 00-20 与 99（无 25/29），下面编号均已实测存在 */
       voiceConfig: [
-        { animation: '17', text: '……请别再叫我可爱了，笨蛋。' },
-        { animation: '18', text: '我还没幼稚到需要你来提醒的程度。' },
-        { animation: '03', text: '什么事？没事的话别来打扰我工作。' },
-        { animation: '99', text: '努力也要适可而止，偷懒也是。' },
-        { animation: '20', text: '刚才笑了吧？\n我全都看到了哦。' }
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_01.ogg', duration: 9.12, chars: '30~47 字', animation: '17', text: '', ok: false },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_02.ogg', duration: 6.43, chars: '21~33 字', animation: '18', text: '', ok: false },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_03.ogg', duration: 1.33, chars: '4~6 字', animation: '03', text: '', ok: false },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_04.ogg', duration: 5.74, chars: '19~29 字', animation: '99', text: '', ok: false },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_05.ogg', duration: 1.67, chars: '5~8 字', animation: '20', text: '', ok: false }
       ],
+      /* plana 目录同样没有 copy 语音（只有 kei 有 kei_copy.ogg） */
       copyConfig: { animation: '07', text: '复制好了……能帮上你就行。' }
     }
   }

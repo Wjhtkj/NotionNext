@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>看板娘语音配对工具</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font: 14px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #fafaf9; color: #1c1c1a;
+  }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+  .tip { color: #6b6a65; font-size: 13px; margin: 0 0 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  button.tab {
+    padding: 7px 16px; border: 1px solid #d3d1c7; border-radius: 8px;
+    background: #fff; color: #1c1c1a; cursor: pointer; font-size: 14px;
+  }
+  button.tab[aria-selected="true"] { background: #1c1c1a; color: #fff; border-color: #1c1c1a; }
+  .row {
+    display: grid; grid-template-columns: 150px 1fr 210px;
+    gap: 14px; align-items: start;
+    padding: 14px; margin-bottom: 10px;
+    background: #fff; border: 1px solid #e5e3dd; border-radius: 12px;
+  }
+  .meta { font-size: 12px; color: #6b6a65; }
+  .fname { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #1c1c1a; }
+  .dur { font-size: 12px; margin-top: 4px; }
+  .dur b { font-weight: 500; }
+  .warn { color: #b45309; }
+  audio { width: 100%; height: 34px; }
+  textarea {
+    width: 100%; min-height: 62px; padding: 8px 10px; font: inherit; font-size: 13px;
+    border: 1px solid #d3d1c7; border-radius: 8px; resize: vertical; background: #fff; color: #1c1c1a;
+  }
+  textarea:focus { outline: 2px solid #888780; outline-offset: -1px; }
+  .cnt { font-size: 11px; margin-top: 4px; color: #6b6a65; }
+  .cnt.bad { color: #b42318; }
+  .cnt.ok { color: #067647; }
+  #out {
+    width: 100%; min-height: 190px; margin-top: 10px; padding: 12px;
+    font: 12px/1.55 ui-monospace, Menlo, Consolas, monospace;
+    border: 1px solid #d3d1c7; border-radius: 12px; background: #fff; color: #1c1c1a;
+  }
+  .bar { display: flex; gap: 10px; align-items: center; margin: 18px 0 8px; flex-wrap: wrap; }
+  h2 { font-size: 14px; font-weight: 500; margin: 22px 0 8px; }
+  .ghost { font-size: 12px; color: #6b6a65; }
+  @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>看板娘语音配对工具</h1>
+<p class="tip">
+  逐条试听 → 照着听写台词 → 填进下面文本框 → 点「复制配置」粘贴到
+  <code>themes/arona/config.js</code> 的 <code>voiceConfig</code>。
+  建议字数按中文口语 3.2~5.2 字/秒 估算，超出区间会标红提示。
+  详细说明见同目录 <a href="./README.md">README.md</a>（含动画编号清单与排错表）。
+</p>
+
+<div class="tabs" id="tabs"></div>
+<div id="list"></div>
+
+<div class="bar">
+  <h2 style="margin:0">生成的配置片段</h2>
+  <button class="tab" id="copy">复制到剪贴板</button>
+  <span class="ghost" id="copied"></span>
+</div>
+<textarea id="out" readonly></textarea>
+
+<script>
+/* 语音清单。duration 为实测值（Ogg granule / 采样率），
+   与 SpinePlayer.js 里的估算逻辑共用同一套字数区间。 */
+const DATA = {
+  arona: {
+    label: 'arona（浅色 · arona_spr）',
+    dir: '/arona/spine_assets/arona/audio/zh/',
+    bones: 2128,
+    items: [
+      { f: 'arona_01.ogg', d: 3.49, anim: '10' },
+      { f: 'arona_02.ogg', d: 4.18, anim: '00' },
+      { f: 'arona_03.ogg', d: 5.70, anim: '07' },
+      { f: 'arona_04.ogg', d: 5.64, anim: '05' },
+      { f: 'arona_05.ogg', d: 2.95, anim: '04' },
+      { f: 'arona_06.ogg', d: 7.60, anim: '03' }
+    ],
+    copy: { anim: '07', text: '邦邦咔邦！有用的知识复制好啦！' }
+  },
+  plana: {
+    label: 'plana（深色 · NP0035_spr）',
+    dir: '/arona/spine_assets/plana/audio/zh/',
+    bones: 2216,
+    items: [
+      { f: 'plana_01.ogg', d: 9.12, anim: '17' },
+      { f: 'plana_02.ogg', d: 6.43, anim: '18' },
+      { f: 'plana_03.ogg', d: 1.33, anim: '03' },
+      { f: 'plana_04.ogg', d: 5.74, anim: '99' },
+      { f: 'plana_05.ogg', d: 1.67, anim: '20' }
+    ],
+    copy: { anim: '07', text: '复制好了……能帮上你就行。' }
+  }
+}
+
+const text = {}   // key -> 台词
+let cur = 'arona'
+
+const tabs = document.getElementById('tabs')
+for (const k of Object.keys(DATA)) {
+  const b = document.createElement('button')
+  b.className = 'tab'
+  b.textContent = DATA[k].label
+  b.onclick = () => { cur = k; render() }
+  b.dataset.k = k
+  tabs.appendChild(b)
+}
+
+const lo = d => Math.ceil((d * 3.2) / 10) * 10
+const hi = d => Math.floor((d * 5.2) / 10) * 10
+const key = (c, i) => c + '_' + i
+
+function render() {
+  for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.k === cur)
+  const g = DATA[cur]
+  const box = document.getElementById('list')
+  box.innerHTML = ''
+  g.items.forEach((it, i) => {
+    const k = key(cur, i)
+    const row = document.createElement('div')
+    row.className = 'row'
+    row.innerHTML =
+      '<div class="meta">' +
+        '<div class="fname">' + it.f + '</div>' +
+        '<div class="dur"><b>' + it.d.toFixed(2) + 's</b> · 建议 ' + lo(it.d) + '~' + hi(it.d) + ' 字</div>' +
+        '<div class="dur">动画 <b>' + it.anim + '</b> · 第 ' + (i + 1) + ' 条</div>' +
+      '</div>' +
+      '<div><audio controls preload="none" src="' + g.dir + it.f + '"></audio></div>' +
+      '<div>' +
+        '<textarea placeholder="照着听到的写台词…"></textarea>' +
+        '<div class="cnt"></div>' +
+      '</div>'
+    const ta = row.querySelector('textarea')
+    const cnt = row.querySelector('.cnt')
+    const sync = () => {
+      text[k] = ta.value
+      const n = ta.value.replace(/\s/g, '').length
+      if (!n) { cnt.className = 'cnt'; cnt.textContent = '未填写'; }
+      else {
+        const a = lo(it.d), b = hi(it.d)
+        cnt.className = 'cnt ' + (n < a ? 'bad' : n > b ? 'warn' : 'ok')
+        cnt.textContent = n + ' 字' + (n < a ? '（偏少，念不满录音）' : n > b ? '（偏多，会念不完）' : '（合适）')
+      }
+      build()
+    }
+    ta.oninput = sync
+    if (text[k]) { ta.value = text[k]; sync() } else { sync() }
+    box.appendChild(row)
+  })
+  build()
+}
+
+function build() {
+  const g = DATA[cur]
+  const lines = g.items.map((it, i) => {
+    const t = (text[key(cur, i)] || '').trim()
+    if (!t) return '        // TODO ' + it.f + '（' + it.d.toFixed(2) + 's，建议 ' + lo(it.d) + '~' + hi(it.d) + ' 字）还没配台词'
+    return "        { audio: '" + g.dir + it.f + "', duration: " + it.d.toFixed(2) +
+           ", animation: '" + it.anim + "', text: '" + t.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n') + "' },"
+  }).join('\n')
+  document.getElementById('out').value =
+    'voiceConfig: [\n' + lines + '\n      ],\n' +
+    "      copyConfig: { animation: '" + g.copy.anim + "', text: '" + g.copy.text + "' }"
+}
+
+document.getElementById('copy').onclick = async () => {
+  const v = document.getElementById('out')
+  try {
+    await navigator.clipboard.writeText(v.value)
+    document.getElementById('copied').textContent = '已复制'
+  } catch {
+    v.select(); document.execCommand('copy')
+    document.getElementById('copied').textContent = '已复制（兼容模式）'
+  }
+  setTimeout(() => { document.getElementById('copied').textContent = '' }, 2000)
+}
+
+render()
+</script>
+</body>
+</html>

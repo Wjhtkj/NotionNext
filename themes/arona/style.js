@@ -997,8 +997,11 @@ const Style = () => {
       bottom: 25px;
       left: 3%;
       z-index: 300;
+      /* 具体宽高由 SpinePlayer.js 的 layoutFor() 按视口与骨架比例算出后
+         写进内联 style（每个骨架比例不同：arona 1:2.10、plana 1:1.92）。
+         这里只给首屏占位值，JS 接管后会被覆盖。 */
       height: 45vh;
-      min-height: 300px;
+      min-height: 200px;
       width: auto;
       filter: drop-shadow(0 0 3px rgba(40, 42, 44, 0.42));
       cursor: pointer;
@@ -1017,7 +1020,38 @@ const Style = () => {
     /* 窄屏降透明度避免挡正文，悬停恢复为 1（见上面的 :hover）。
        参考站是 0.7，这里用 0.85 —— 0.7 在浅色玻璃背景上明显发灰。 */
     @media (max-width: 1440px) { .arona-spine-wrap { opacity: 0.85; } }
-    @media (max-width: 768px) { .arona-spine-wrap { display: none; } }
+
+    /* ===== 响应式 =====
+       原来在 768px 直接 display:none，窄屏完全看不到角色；
+       但手机上正是最想看角色的时候，所以改为保留显示、缩小 + 让位。
+       移动端无 hover，:hover 规则不生效，故这里直接给足不透明度。 */
+    @media (max-width: 768px) {
+      .arona-spine-wrap {
+        left: 0;
+        bottom: 12px;
+        opacity: 0.92;
+        min-height: 140px;
+        filter: drop-shadow(0 0 2px rgba(40, 42, 44, 0.34));
+      }
+    }
+    /* 矮屏（横屏手机、开了开发者工具的桌面窗口）：
+       45vh 会把角色顶出视口顶部，JS 侧已按视口高度封顶，这里再兜一层。 */
+    @media (max-height: 560px) {
+      .arona-spine-wrap { min-height: 120px; bottom: 8px; }
+    }
+    /* 超宽屏：角色贴左 3% 会离正文太远且可能顶到边缘内容，收到 2%。 */
+    @media (min-width: 2200px) {
+      .arona-spine-wrap { left: 2%; bottom: 40px; }
+    }
+    /* 触屏设备没有 hover，字幕气泡靠点击触发，
+       给个更紧凑的内边距避免超出窄屏。 */
+    @media (max-width: 768px) {
+      .arona-spine-dialog {
+        font-size: 15px;
+        padding: 10px 16px;
+        max-width: 78vw;
+      }
+    }
     .arona-spine-wrap.hidden { display: none !important; }
     .arona-spine-dialog {
       position: fixed;
@@ -1029,6 +1063,9 @@ const Style = () => {
       padding: 12px 24px;
       line-height: 1.4;
       font-size: 18px;
+      /* width 由 JS 按容器与视口算出并写入内联 style；
+         没有 border-box 的话内联 width 不含 padding，气泡会比预期宽 48px 而溢出 */
+      box-sizing: border-box;
       white-space: pre-wrap;
       word-wrap: break-word;
       filter: drop-shadow(0 0 3px rgba(36, 36, 36, 0.6));

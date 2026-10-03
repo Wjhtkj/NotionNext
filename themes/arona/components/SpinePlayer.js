@@ -13,7 +13,7 @@ import CONFIG from '../config'
  */
 export default function SpinePlayer() {
   const containerRef = useRef(null)
-  const [dialog, setDialog] = useState({ text: '', left: 0, top: 0, show: false })
+  const [dialog, setDialog] = useState({ text: '', left: 0, top: 0, width: 240, show: false })
 
   useEffect(() => {
     if (!siteConfig('ARONA_SPINE_ENABLE', false, CONFIG)) return
@@ -29,6 +29,10 @@ export default function SpinePlayer() {
     let resizeObserver = null
     let skeletonAspect = 1
     let bounds = null
+    /* 视口重算的清理函数集合（resize / orientationchange 监听）。
+       必须是 const + 原地清空：initSpine 每次都会先 cleanup 再重新注册，
+       若用 let 重新赋值，旧一轮 push 进去的函数会随数组一起丢失引用而泄漏监听。 */
+    const relayoutFns = []
     let currentChar = lightChar
     let isPlaying = false
     let isDialogPlaying = false
@@ -52,16 +56,64 @@ export default function SpinePlayer() {
        用单调递增的 token 判定「我还是最新那次吗」，不是最新就立即收尾退出。 */
     let initToken = 0
 
-    /* 无语音时，按字数估算字幕停留时间。
-       中文口语约 4.2 字/秒，行数多时逐行累加阅读时间；
-       上下限各留 2.4s / 9s，避免一句话一闪而过或念完还杵着不走。 */
+    /* ===== 音频 =====
+       与语音成对使用：某条配了 audio 就播声音，只写了 text 就出静默字幕。
+       音频加载或解码失败不能影响字幕 —— catch 后退回按字数估算。 */
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
+    let audioCtx = null
+    let gainNode = null
+    const audioCache = new Map()
+    const initAudio = () => {
+      if (!audioCtx && AudioCtx) {
+        audioCtx = new AudioCtx()
+        gainNode = audioCtx.createGain()
+        gainNode.gain.value = 0.5
+        gainNode.connect(audioCtx.destination)
+      }
+    }
+    const loadAudio = async url => {
+      if (audioCache.has(url)) return audioCache.get(url)
+      if (!audioCtx) return null
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`语音加载失败 HTTP ${res.status}：${url}`)
+      const buf = await audioCtx.decodeAudioData(await res.arrayBuffer())
+      audioCache.set(url, buf)
+      return buf
+    }
+    const playAudio = buf =>
+      new Promise(resolve => {
+        /* Safari 的 AudioBufferSourceNode 极��在节点被 GC 后不触发 onended，
+           兜一个上限时长，避免字幕永久卡住。 */
+        const cap = setTimeout(resolve, Math.max(1000, (buf?.duration || 3) * 1000 + 400))
+        const src = audioCtx.createBufferSource()
+        src.buffer = buf
+        src.connect(gainNode)
+        src.onended = () => {
+          clearTimeout(cap)
+          resolve()
+        }
+        src.start()
+      })
+
+    /* 字幕停留时长：
+       1. 配了 duration（实测秒数）就直接用，字幕严格跟录音走；
+       2. 否则按字数估算 —— 中文口语约 4.2 字/秒，逐行累加阅读时间，
+          上下限 2.4s / 12s（plana_01 有 9.12s 的长录音，9s 上限会截断）。 */
     const estimateDialogMs = text => {
       const lines = String(text || '').split('\n').filter(Boolean)
       const chars = lines.reduce((n, l) => n + l.length, 0)
       const readMs = (chars / 4.2) * 1000
       const lineMs = lines.length * 700
-      return Math.min(9000, Math.max(2400, readMs + lineMs + 600))
+      return Math.min(12000, Math.max(2400, readMs + lineMs + 600))
     }
+    const dialogMs = pair =>
+      pair.duration ? Math.max(1600, pair.duration * 1000 + 350) : estimateDialogMs(pair.text)
+
+    /* 只挑「已配好台词」的条目：text 为空的条目直接跳过，
+       否则用户会听到声音却看到空气。 */
+    const usableVoices = cfg =>
+      (cfg.voiceConfig || []).filter(v => v && !v.skip && String(v.text || '').trim())
+
     const waitDialog = ms =>
       new Promise(resolve => {
         const t = setTimeout(() => {
@@ -80,10 +132,68 @@ export default function SpinePlayer() {
       document.documentElement.getAttribute('theme') === 'dark' ||
       document.documentElement.getAttribute('data-theme') === 'dark'
 
+    /* ===== 响应式布局 =====
+       两个骨架的实测比例不同：arona_spr 1011x2128 = 1:2.10，
+       NP0035_spr 1154x2216 = 1:1.92，胖瘦差约 9%。
+       原来只按高度（CSS 的 45vh）反算宽度，于是：
+         · 同一高度下，plana 会比 arona 宽 9%，换角色时观感体型跳变；
+         · 超宽屏上 45vh 很高，宽度也随之膨胀，可能横向溢出屏幕；
+         · 竖屏/矮屏上 45vh 虽小，但 min-height:300px 会把角色顶出视口顶部。
+       现在改为「高度与宽度双约束」：先按视口算出允许的最大高度，
+       再用比例推出宽度；若宽度超过视口允许的份额，就按宽度反推高度。 */
+    const LAYOUT = {
+      /* 视口高度占比。移动端地址栏会改变可视高度，故上限压低一些更安全 */
+      heightRatio: 0.45,
+      minHeight: 200,
+      /* 高度上限按视口宽度分档：大屏上 45vh 会让角色顶到 900px 以上，
+         显得过大且压住正文。分档后 4K 约 760、QHD 约 620、1080p 约 486。 */
+      maxHeightByWidth: [[2200, 760], [1700, 620], [0, 560]],
+      /* 宽度最多占视口宽度的比例。左侧固定摆放，留 24px 边距 */
+      maxWidthRatio: 0.34,
+      /* 边距（px） */
+      sideMargin: 24,
+      bottomMargin: 25
+    }
+
+    const layoutFor = (b, aspect) => {
+      const vw = Math.max(window.innerWidth || 1280, 320)
+      const vh = Math.max(window.innerHeight || 800, 480)
+      const capH = LAYOUT.maxHeightByWidth.find(([min]) => vw >= min)[1]
+      let h = Math.min(vh * LAYOUT.heightRatio, capH)
+      h = Math.max(h, Math.min(LAYOUT.minHeight, vh * 0.6))
+      let w = h * aspect
+      const wMax = vw * LAYOUT.maxWidthRatio - LAYOUT.sideMargin
+      if (w > wMax) {
+        w = Math.max(wMax, 120)
+        h = w / aspect
+      }
+      /* 高度也不允许超出「视口减去底边距」，否则角色顶部被裁 */
+      const hMax = vh - LAYOUT.bottomMargin - 8
+      if (h > hMax) {
+        h = Math.max(hMax, 160)
+        w = h * aspect
+      }
+      return { width: Math.round(w), height: Math.round(h), scale: h / (b.height || 500) }
+    }
+
+    /* 把布局写回容器与 canvas。CSS 里 canvas 用 100%!important 拉伸，
+       这里只负责给容器定尺寸 + 通知 pixi 调整渲染缓冲。
+       renderer 必须显式传入：初始化阶段闭包里的 app 还没赋值，
+       若在这里读 app 会拿到 null，canvas 缓冲就停留在旧的 300px 占位尺寸。 */
+    const applyLayout = (l, b, aspect, scaleFactor, renderer) => {
+      const el = containerRef.current
+      if (!el) return
+      el.style.width = l.width + 'px'
+      el.style.height = l.height + 'px'
+      el.dataset.aspect = aspect.toFixed(4)
+      if (renderer) renderer.resize(l.width * scaleFactor, l.height * scaleFactor)
+    }
+
     const cleanup = () => {
       if (blinkTimer) clearTimeout(blinkTimer)
       if (moveHandler) window.removeEventListener('mousemove', moveHandler)
       moveHandler = null
+      relayoutFns.splice(0).forEach(fn => fn())
       if (resizeObserver && containerRef.current) {
         resizeObserver.disconnect()
         resizeObserver = null
@@ -94,17 +204,27 @@ export default function SpinePlayer() {
         app = null
         spine = null
       }
+      audioCache.clear()
       clearDialogTimers()
     }
 
+    /* 字幕定位：气泡在角色上方居中，但要夹在视口内。
+       原来写死 -120px 偏移（假定气泡宽 240px），窄屏下角色本身已缩到很小，
+       气泡会往左溢出屏幕；这里按实际容器尺寸与视口宽度算，并夹紧边界。 */
     const updateDialogPos = () => {
       if (!containerRef.current) return
       const r = containerRef.current.getBoundingClientRect()
-      setDialog(d => ({
-        ...d,
-        left: r.left + r.width / 2 - 120,
-        top: r.top + r.height / 2 - 30
-      }))
+      const vw = window.innerWidth || 1280
+      const vh = window.innerHeight || 800
+      const w = Math.min(r.width * 2.2 + 80, vw - 32)
+      let left = r.left + r.width / 2 - w / 2
+      left = Math.max(16, Math.min(left, vw - w - 16))
+      let top = r.top - 12
+      /* 顶部空间不够时改放到角色上方更高的位置，仍不够就压到视口内顶部 */
+      const hGuess = 92
+      if (top - hGuess < 8) top = Math.max(8, r.top - hGuess + 40)
+      top = Math.max(8, Math.min(top, vh - hGuess - 8))
+      setDialog(d => ({ ...d, left, top, width: w }))
     }
 
     const showDialogText = text => {
@@ -181,17 +301,18 @@ export default function SpinePlayer() {
         if (isStale() || !containerRef.current) return
 
         const scaleFactor = 2
-        /* width:auto 的定高容器在内容为空时 clientWidth 为 0，会让 canvas 宽度为 0 而完全不可见。
-           先用容器高度占位，待骨架解析出真实宽高比后再修正（下面有 ResizeObserver 兜底）。 */
-        const initH = containerRef.current.clientHeight || 300
-        const initW = containerRef.current.clientWidth || initH
-        if (!containerRef.current.clientWidth) {
-          containerRef.current.style.width = initW + 'px'
-        }
+        /* 先用 layoutFor 算出初始尺寸。
+           不能依赖 clientWidth：容器是 width:auto，在内容为空时宽度为 0，
+           曾导致线上出现 <canvas width="0"> 而角色完全不可见。
+           骨架比例要等 parse 之后才知道，但骨架尺寸（2128/2216）在 config 里
+           可以预置一个缺省比例先行初始化，parse 完成后 applyLayout 会精确修正。 */
+        const bootBounds = { height: cfg.boundsHeight || 2100, width: 0 }
+        bootBounds.width = bootBounds.height * (cfg.aspectRatio || 0.5)
+        const bootLayout = layoutFor(bootBounds, bootBounds.width / bootBounds.height)
         myApp = new PIXI.Application()
         await myApp.init({
-          width: initW * scaleFactor,
-          height: initH * scaleFactor,
+          width: bootLayout.width * scaleFactor,
+          height: bootLayout.height * scaleFactor,
           backgroundAlpha: 0,
           antialias: true,
           resolution: 1
@@ -218,15 +339,16 @@ export default function SpinePlayer() {
         mySpine.skeleton.updateWorldTransform(1)
         const myBounds = mySpine.skeleton.getBoundsRect()
         const myAspect = (myBounds.width || 500) / (myBounds.height || 500)
-        const ch = containerRef.current.clientHeight
-        const cw = ch * myAspect
-        containerRef.current.style.width = cw + 'px'
+        /* 按视口同时约束高度与宽度，避免超宽屏上角色横向溢出、
+           竖屏/矮屏上纵向超出视口。写入容器 CSS 变量供样式层复用。 */
+        const myLayout = layoutFor(myBounds, myAspect)
+        applyLayout(myLayout, myBounds, myAspect, scaleFactor, myApp.renderer)
 
-        const s = ch / (myBounds.height || 500)
+        const s = myLayout.scale
         mySpine.scale.set(s * scaleFactor)
         mySpine.position.set(
           -myBounds.x * s * scaleFactor,
-          (ch - (myBounds.y + myBounds.height) * s) * scaleFactor
+          (myLayout.height - (myBounds.y + myBounds.height) * s) * scaleFactor
         )
         mySpine.batched = false
         myApp.stage.addChild(mySpine)
@@ -266,21 +388,36 @@ export default function SpinePlayer() {
         }
         blink()
 
-        // ResizeObserver
-        myResizeObserver = new ResizeObserver(entries => {
-          for (const entry of entries) {
-            const nh = entry.contentRect.height
-            const nw = nh * myAspect
-            if (containerRef.current) containerRef.current.style.width = nw + 'px'
-            if (myApp && mySpine) {
-              myApp.renderer.resize(nw * scaleFactor, nh * scaleFactor)
-              const ns = nh / (myBounds.height || 500)
-              mySpine.scale.set(ns * scaleFactor)
-              mySpine.position.set(-myBounds.x * ns * scaleFactor, (nh - (myBounds.y + myBounds.height) * ns) * scaleFactor)
-            }
+        /* 视口尺寸变化时重算布局。
+           只靠 ResizeObserver 不够：容器高度由 vh 决定，
+           而 vh 在移动端浏览器地址栏收起/展开时会变，
+           且只观察容器自身的 contentRect 会形成「改宽度→触发观察→再改宽度」的回环。
+           所以额外监听 window.resize，并加防抖。 */
+        let resizeRaf = 0
+        const relayout = () => {
+          if (resizeRaf) cancelAnimationFrame(resizeRaf)
+          resizeRaf = requestAnimationFrame(() => {
+            resizeRaf = 0
+            if (!myApp || !mySpine || isStale()) return
+            const l = layoutFor(myBounds, myAspect)
+            applyLayout(l, myBounds, myAspect, scaleFactor, myApp.renderer)
+            mySpine.scale.set(l.scale * scaleFactor)
+            mySpine.position.set(
+              -myBounds.x * l.scale * scaleFactor,
+              (l.height - (myBounds.y + myBounds.height) * l.scale) * scaleFactor
+            )
             if (dialog.show) updateDialogPos()
-          }
+          })
+        }
+        window.addEventListener('resize', relayout)
+        window.addEventListener('orientationchange', relayout)
+        relayoutFns.push(() => {
+          if (resizeRaf) cancelAnimationFrame(resizeRaf)
+          window.removeEventListener('resize', relayout)
+          window.removeEventListener('orientationchange', relayout)
         })
+
+        myResizeObserver = new ResizeObserver(relayout)
         myResizeObserver.observe(containerRef.current)
         resizeObserver = myResizeObserver
       } catch (err) {
@@ -297,7 +434,7 @@ export default function SpinePlayer() {
 
     const playRandomVoice = async () => {
       if (isPlaying || !currentCharCfg) return
-      const list = currentCharCfg.voiceConfig || []
+      const list = usableVoices(currentCharCfg)
       if (!list.length) return
       isPlaying = true
       isDialogPlaying = true
@@ -310,7 +447,20 @@ export default function SpinePlayer() {
       showDialogText(pair.text)
       try {
         if (spine && pair.animation) animationState.setAnimation(2, pair.animation, false)
-        await waitDialog(estimateDialogMs(pair.text))
+        /* 音频与字幕并行：音频通常要几百毫秒才解出来，
+           若先 await 音频再计时，字幕会明显滞后于声音。
+           这里用 Promise.race 兜底 —— 音频失败/超时就按 duration 或字数收尾。 */
+        let audioDone
+        if (pair.audio) {
+          audioDone = loadAudio(pair.audio)
+            .then(buf => (buf ? playAudio(buf) : null))
+            .catch(err => {
+              /* 音频坏了不该让角色失声，只降级成静默字幕 */
+              console.warn('[arona-spine] 语音播放失败，已降级为静默字幕：', err)
+              return null
+            })
+        }
+        await Promise.race([audioDone || Promise.resolve(), waitDialog(dialogMs(pair))])
         isPlaying = false
         isDialogPlaying = false
         eyeDisabled = false
@@ -340,7 +490,16 @@ export default function SpinePlayer() {
       try {
         showDialogText(cc.text)
         if (spine && cc.animation) animationState.setAnimation(2, cc.animation, false)
-        await waitDialog(Math.max(2400, estimateDialogMs(cc.text)))
+        let audioDone
+        if (cc.audio) {
+          audioDone = loadAudio(cc.audio)
+            .then(buf => (buf ? playAudio(buf) : null))
+            .catch(err => {
+              console.warn('[arona-spine] 复制语音播放失败，已降级为静默字幕：', err)
+              return null
+            })
+        }
+        await Promise.race([audioDone || Promise.resolve(), waitDialog(dialogMs(cc))])
         isPlaying = false
         isDialogPlaying = false
         eyeDisabled = false
@@ -413,7 +572,10 @@ export default function SpinePlayer() {
     <>
       <div className='arona-spine-wrap' ref={containerRef} />
       {dialog.show && (
-        <div className='arona-spine-dialog' style={{ left: dialog.left, top: dialog.top }}>
+        <div
+          className='arona-spine-dialog'
+          style={{ left: dialog.left, top: dialog.top, width: dialog.width }}
+        >
           {dialog.text}
         </div>
       )}
