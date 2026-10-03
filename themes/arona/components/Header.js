@@ -31,17 +31,16 @@ export const Header = props => {
      仍可通过站内链接或直接输网址访问，只是不在顶栏露出入口。 */
   const buildLinks = () => {
     /* 「关于」指向站内 /about。
-       不加 external —— SmartLink 的外链判定是
-       `startsWith('http') && !startsWith(LINK)`，
-       本站 LINK 就是 https://wjhtkjwz.eu.org，
-       所以这个绝对地址会被识别为站内链接、走 Next 路由（单页导航，
-       不整页刷新）。这正是想要的行为。
-       href 用绝对地址而非 /about：与站点其他外链写法一致，
-       即使将来换域名也不至于指向错误主机。 */
+       用相对路径而非绝对地址：SmartLink 的外链判定是
+       `startsWith('http') && !startsWith(LINK)`，写绝对地址时
+       只要线上 LINK 配置与该地址不完全一致（尾斜杠、www 等），
+       就会被当成外链、在新标签页打开（实测线上就渲染成了
+       target="_blank"）。相对路径不参与 startsWith('http') 判定，
+       稳定走 Next 路由单页跳转。 */
     const aboutLink = {
       icon: 'fas fa-circle-info',
       name: '关于',
-      href: 'https://wjhtkjwz.eu.org/about',
+      href: '/about',
       show: true
     }
 
