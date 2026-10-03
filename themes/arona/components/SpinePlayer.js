@@ -533,15 +533,31 @@ export default function SpinePlayer() {
     })
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'theme', 'data-theme'] })
 
+    /* 记住挂载时拿到的节点。cleanup 执行时 containerRef.current 可能已经变了
+       （React 重渲染或卸载），拿它 removeEventListener 会卸到错误的节点上，
+       旧节点上的 click 监听就永远摘不掉了。 */
+    let mountedEl = null
+
+    /* 卸载必须与注册时逐字对称：onCopy 被包了一层，
+         这里也得用同一个包装函数引用，否则 removeEventListener 匹配不上，
+         copy 监听会泄漏（每次 mount 叠加一个）。
+         touchstart 从未注册（见 onMount 的注释），移除它是空操作，一并删掉。 */
+    const onCopyWrap = () => {
+      onCopy()
+    }
+
     const onMount = () => {
       initSpine(isDark() ? darkChar : lightChar)
       const el = containerRef.current
       if (el) {
+        mountedEl = el
         /* 只监听 click：移动端触摸也会合成 click，若同时绑 touchstart
            一次点按会进来两次，白白消耗一次随机数并重置动画。 */
         el.addEventListener('click', onPlayerClick)
       }
-      window.addEventListener('copy', onCopy, true)
+      /* onCopy 是 async，addEventListener 的监听器签名要求返回 void。
+         包一层箭头函数丢掉返回值，否则 Promise 被当成「handler 返回值」传出去。 */
+      window.addEventListener('copy', onCopyWrap, true)
       window.addEventListener('spine-toggle', onSpineToggle)
       try {
         applySpineEnabled(localStorage.getItem('spine-enabled') !== 'false')
@@ -555,13 +571,12 @@ export default function SpinePlayer() {
     return () => {
       disposed = true
       observer.disconnect()
-      window.removeEventListener('copy', onCopy, true)
+      window.removeEventListener('copy', onCopyWrap, true)
       window.removeEventListener('spine-toggle', onSpineToggle)
-      const el = containerRef.current
-      if (el) {
-        el.removeEventListener('click', onPlayerClick)
-        el.removeEventListener('touchstart', onPlayerClick)
-      }
+      /* 存一下挂载时的节点：cleanup 执行时 containerRef.current 可能已变，
+         用它 removeEventListener 会卸到错误的节点上。 */
+      const el = mountedEl
+      if (el) el.removeEventListener('click', onPlayerClick)
       cleanup()
     }
   }, [])

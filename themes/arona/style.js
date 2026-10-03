@@ -266,23 +266,70 @@ const Style = () => {
     .arona-header .logo a { display: flex; align-items: center; height: 100%; }
     .arona-header .logo img { height: 32px; width: auto; min-width: 32px; filter: drop-shadow(0 0 8px #328cfa); }
 
+    /* .menu 与 ul 都不能有 overflow。
+       子菜单（.sub-menu）是绝对定位、挂在 li 上，而 li 是 ul 的子元素。
+       CSS 规定 overflow-x/y 任一非 visible 时，另一项的 visible 会被算成 auto，
+       于是 ul 变成裁切容器、把子菜单裁在菜单栏高度内
+       （实测「往期整理」的三个子菜单被限制在菜单栏里，命中测试全部落在容器上）。
+       把滚动从 .menu 挪到 ul 也无效 —— li 在 ul 内，同样被裁。
+
+       最终方案：两处都不设 overflow，窄屏需要横向滚动时
+       由 Header.js 实测 scrollWidth > clientWidth 后给 ul 加
+       .menu-scroll 类，只在真正溢出时才启用（见下方 .menu-scroll 规则）。 */
     .arona-header .menu {
-      overflow-x: auto;
       -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
       margin: 0 24px;
       padding: 0;
+      /* flex 子项需允许收缩，否则菜单总宽会挤走 logo 与汉堡按钮 */
+      min-width: 0;
     }
-    .arona-header .menu::-webkit-scrollbar { display: none; }
+    /* 仅在实测溢出时（Header.js 加 .menu-scroll）才成为滚动容器。
+       代价是子菜单重新被裁（见下方 .menu-scroll 下的降级规则）。 */
+    .arona-header .menu ul.menu-scroll {
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .arona-header .menu ul.menu-scroll::-webkit-scrollbar { display: none; }
+    /* 溢出 ⇒ 菜单放不下 ⇒ 视口已经足够窄，横向 hover 弹出子菜单本就不合理，
+       而且 ul 一旦是滚动容器（overflow-y 被算成 auto），子菜单必被裁。
+       所以这里直接把它降级为「常驻缩进」形态：静态定位、在 ul 内部正常撑开、
+       随菜单一起横向滑动，永不被裁。与下方 (hover: none) 同一套规则。 */
+    .arona-header .menu ul.menu-scroll li.has-sub > .sub-menu {
+      position: static;
+      transform: none;
+      min-width: 0;
+      margin: 0 0 4px 12px;
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      box-shadow: none;
+      border-width: 0 0 0 2px;
+      border-radius: 0 12px 12px 0;
+    }
+    .arona-header .menu ul.menu-scroll li.has-sub > a .sub-arrow { transform: rotate(90deg); }
+
+    /* menu-scroll 时子菜单常驻缩进会把 li 撑高（父项 + 三个子项 ≈ 170px），
+       而 nav 写死 height: 72px + align-items: center ——
+       li 超出后上下各溢出约 48px，顶部那项直接跑到视口外看不见。
+       所以这状态下 nav 改为内容驱动高度、子项顶对齐，
+       让 nav 自己撑高到容纳整棵菜单。 */
+    .arona-header:has(.menu ul.menu-scroll) nav {
+      height: auto;
+      min-height: 72px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .arona-header .menu ul.menu-scroll { align-items: flex-start; }
     /* 菜单横向溢出提示（.menu-scroll-hint 由 Header.js 依据
        scrollWidth > clientWidth 实测后加在 .menu 上）。
 
        实现位置的取舍：
-         · 放在 .menu 内的 ::after 不行 —— .menu 是 overflow-x:auto，
-           绝对定位元素会随横向滚动内容一起移动，滑到哪它跟到哪；
-         · 放在 nav 上则要算出 .menu 的右缘，菜单宽度随内容变化，
-           纯 CSS 算不出来。
+         · 放在 .menu 内的 ::after 不行 —— 加了 .menu-scroll 后
+           ul 才是滚动容器，但 .menu 本身始终是 overflow: visible，
+           绝对定位元素会「固定在滚动位置之外」，不跟着内容走；
+         · 放在 ul 内更糟 —— 绝对定位会随横向滚动内容一起移动，
+           滑到哪它跟到哪。
        所以用 JS 把 .menu 标记为 .menu-scroll-hint，
        提示条画在 nav 上（position: sticky 的 nav 内，不随菜单滚动），
        横向位置由 nav 的 padding-right 决定 —— nav 是 flex 容器，
@@ -315,6 +362,10 @@ const Style = () => {
       list-style: none;
       white-space: nowrap;
       gap: clamp(16px, 4vw, 64px);
+      /* 刻意不设 overflow：会让子菜单被裁（见上方注释）。
+         横向滚动由 .menu-scroll 类按需启用。 */
+      flex-shrink: 1;
+      min-width: 0;
     }
     .arona-header .menu li { margin: 0; flex-shrink: 0; }
     .arona-header .menu li a {
