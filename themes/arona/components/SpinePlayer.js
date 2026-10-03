@@ -67,16 +67,37 @@ export default function SpinePlayer() {
     let audioCtx = null
     let gainNode = null
     const audioCache = new Map()
+    /* 必须在挂载时就初始化，不能等到点击。
+       参考项目（Astro 版 SpinePlayer.vue）在 onMounted 里就调
+       AudioManager.initialize()，此处移植时漏掉了这一步 ——
+       audioCtx 恒为 null，loadAudio 第一行 `if (!audioCtx) return null`
+       直接返回，于是点一下只有字幕、永远没有声音。
+       另外浏览器的 AudioContext 初始可能是 suspended 状态，
+       需要在用户手势里 resume()，否则播放无声。 */
     const initAudio = () => {
-      if (!audioCtx && AudioCtx) {
-        audioCtx = new AudioCtx()
-        gainNode = audioCtx.createGain()
-        gainNode.gain.value = 0.5
-        gainNode.connect(audioCtx.destination)
+      if (!AudioCtx) return null
+      if (!audioCtx) {
+        try {
+          audioCtx = new AudioCtx()
+          gainNode = audioCtx.createGain()
+          gainNode.gain.value = 0.5
+          gainNode.connect(audioCtx.destination)
+        } catch (err) {
+          console.warn('[arona-spine] AudioContext 创建失败，语音不可用：', err)
+          audioCtx = null
+        }
       }
+      /* suspended 时 resume 是异步的，且必须在用户手势内调用才有效果 */
+      if (audioCtx && audioCtx.state === 'suspended') {
+        const r = audioCtx.resume()
+        if (r && typeof r.catch === 'function') r.catch(() => {})
+      }
+      return audioCtx
     }
     const loadAudio = async url => {
       if (audioCache.has(url)) return audioCache.get(url)
+      /* 兜底：万一之前初始化失败（隐私模式等），这里再试一次 */
+      if (!audioCtx) initAudio()
       if (!audioCtx) return null
       const res = await fetch(url)
       if (!res.ok) throw new Error(`语音加载失败 HTTP ${res.status}：${url}`)
@@ -86,17 +107,23 @@ export default function SpinePlayer() {
     }
     const playAudio = buf =>
       new Promise(resolve => {
-        /* Safari 的 AudioBufferSourceNode 极��在节点被 GC 后不触发 onended，
+        /* Safari 的 AudioBufferSourceNode 偶尔在节点被 GC 后不触发 onended，
            兜一个上限时长，避免字幕永久卡住。 */
         const cap = setTimeout(resolve, Math.max(1000, (buf?.duration || 3) * 1000 + 400))
-        const src = audioCtx.createBufferSource()
-        src.buffer = buf
-        src.connect(gainNode)
-        src.onended = () => {
+        try {
+          const src = audioCtx.createBufferSource()
+          src.buffer = buf
+          src.connect(gainNode)
+          src.onended = () => {
+            clearTimeout(cap)
+            resolve()
+          }
+          src.start()
+        } catch (err) {
+          console.warn('[arona-spine] 音频播放失败：', err)
           clearTimeout(cap)
           resolve()
         }
-        src.start()
       })
 
     /* 字幕停留时长：
@@ -478,9 +505,23 @@ export default function SpinePlayer() {
       }
     }
 
+    /* 点击处理。300ms 防抖照搬参考项目（SpinePlayer.vue 的
+       `debounce(handlePlayerClick, 300)`）：
+       playRandomVoice 开头有 `if (isPlaying) return`，
+       但它开头就 await 音频加载，那段时间 isPlaying 还没被置true
+       （置位在 await 之前，实际上能挡住）——
+       真正的问题是快速连点会在字幕切换瞬间消耗多次随机数、
+       并让animationState.setAnimation 被连续覆盖。
+       加防抖后行为与参考项目一致。 */
+    let lastClickAt = 0
     const onPlayerClick = e => {
       e.preventDefault()
       e.stopPropagation()
+      const now = Date.now()
+      if (now - lastClickAt < 300) return
+      lastClickAt = now
+      /* 手势内确保 AudioContext 已恢复（自动播放策略下可能是 suspended） */
+      initAudio()
       playRandomVoice()
     }
 
@@ -561,6 +602,10 @@ export default function SpinePlayer() {
 
     const onMount = () => {
       initSpine(isDark() ? darkChar : lightChar)
+      /* 关键：挂载时就建AudioContext（见initAudio 的注释）。
+         不建的话 audioCtx 恒为 null，loadAudio 直接 return null，
+         点看板娘只会出字幕没有声音。 */
+      initAudio()
       const el = containerRef.current
       if (el) {
         mountedEl = el
