@@ -688,10 +688,27 @@ const Style = () => {
         font-size: 15px;
         border-radius: 10px;
       }
-      /* 子菜单默认收起，点父项才展开（accordion） */
-      .arona-header .menu li.has-sub > .sub-menu {
+      /* 子菜单默认收起，点父项才展开（accordion）。
+         这里必须把桌面端那套绝对定位**全部重置**，漏一项就会整体偏移：
+           · position → static（脱离 hover 时居中的绝对定位）
+           · left → auto（桌面端是 left:50% + translateX(-50%) 居中；
+               即使 position 变 static，某些浏览器/层叠上下文下
+               left 仍会参与布局 —— 实测线上子菜单 x=-144、
+               父项 x=26，横向平移了 170px，三个子项文字全跑到屏外）
+           · transform → none（同一原因，且桌面端 hover/focus-within
+               那条 translateX(-50%) translateY(0) 也会参与）
+           · z-index → auto（桌面端 130 在抽屉里没必要，
+               抽屉本体已 z-index 99 把整组抬到遮罩之上）
+         选择器前缀多一层 .menu-drawer-open 是为了压过桌面端规则 ——
+         同特异性的情况下靠「后写」生效，而桌面端 hover 那条在文件更早处，
+         但 :hover 是动态的、随时可能重新匹配，不能只靠顺序赌。 */
+      .arona-header.menu-drawer-open .menu li.has-sub > .sub-menu {
         position: static;
+        left: auto;
+        right: auto;
+        top: auto;
         transform: none;
+        z-index: auto;
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
@@ -703,7 +720,15 @@ const Style = () => {
         border-width: 0;
         background: transparent;
       }
-      .arona-header .menu li.sub-expanded > .sub-menu { display: block; }
+      .arona-header.menu-drawer-open .menu li.sub-expanded > .sub-menu { display: block; }
+      /* 桌面端 :hover / :focus-within 那条会给子菜单 translateX(-50%) translateY(0)。
+         移动端抽屉里父项是被「点」展开的，鼠标不一定在它身上；
+         但触屏/鼠标操作随时可能触发 :hover，把已展开的子菜单横向甩出去。
+         所以这里对 hover/focus 状态也显式清掉位移。 */
+      .arona-header.menu-drawer-open .menu li.has-sub:hover > .sub-menu,
+      .arona-header.menu-drawer-open .menu li.has-sub:focus-within > .sub-menu {
+        transform: none;
+      }
       /* 父项（往期整理）：箭头在标题**左侧**，间距由父级 flex 的 gap 提供。
          这里不加 margin-left:auto —— 图标字体加载失败时箭头宽度为 0，
          auto 仍会把它甩到行尾、把标题挤到最左边（夹具实测复现过）。
