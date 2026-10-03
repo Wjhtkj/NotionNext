@@ -124,18 +124,21 @@ const CONFIG = {
          arona_spr = 1011 x 2128（1:2.10） */
       boundsHeight: 2128,
       aspectRatio: 0.4752,
-      /* 时长为实测值（Ogg granule / 采样率），建议字数按中文口语 3.2~5.2 字/秒 */
+      /* 时长 duration 为实测值（Ogg granule / 采样率），字幕严格跟着录音走。
+         台词为人工听写配对（见 public/tools/README.md 的配对流程）。
+         标 ⚠ 的几条字数略低于建议区间下限（时长 × 3.2 字/秒），
+         听感上结尾可能偏紧；若实际听下来有截断感，可在末尾补一两个语气词。 */
       voiceConfig: [
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_01.ogg', duration: 3.49, chars: '20 字以内', animation: '10', text: '', ok: false },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_02.ogg', duration: 4.18, chars: '14~21 字', animation: '00', text: '', ok: false },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_03.ogg', duration: 5.7, chars: '19~29 字', animation: '07', text: '', ok: false },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_04.ogg', duration: 5.64, chars: '19~29 字', animation: '05', text: '', ok: false },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_05.ogg', duration: 2.95, chars: '10~15 字', animation: '04', text: '', ok: false },
-        { audio: '/arona/spine_assets/arona/audio/zh/arona_06.ogg', duration: 7.6, chars: '25~39 字', animation: '03', text: '', ok: false }
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_01.ogg', duration: 3.49, animation: '10', text: '您回来啦，我等您很久了~' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_02.ogg', duration: 4.18, animation: '00', text: '嗯，不错，今天也是个好天气！' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_03.ogg', duration: 5.7, animation: '07', text: '天空真是广袤，另一边会是什么呢？' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_04.ogg', duration: 5.64, animation: '05', text: '偶尔也要为自己的健康着想哦，老师，我会很担心的' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_05.ogg', duration: 2.95, animation: '04', text: '来，加油吧，老师！' },
+        { audio: '/arona/spine_assets/arona/audio/zh/arona_06.ogg', duration: 7.6, animation: '03', text: '今天又会~有什么事情~在等着我呢？~' }
       ],
       /* arona 目录下没有 copy 语音（只有 aris 有 aris_copy.mp3），
          所以复制事件用静默台词：只出字幕不播声音。 */
-      copyConfig: { animation: '07', text: '邦邦咔邦！有用的知识复制好啦！' }
+      copyConfig: { animation: '07', text: '老师！有用的知识复制好啦！' }
     },
     plana: {
       skelUrl: '/arona/spine_assets/plana/NP0035_spr.skel',
@@ -153,11 +156,11 @@ const CONFIG = {
       aspectRatio: 0.5207,
       /* NP0035_spr 可用动画只有 00-20 与 99（无 25/29），下面编号均已实测存在 */
       voiceConfig: [
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_01.ogg', duration: 9.12, chars: '30~47 字', animation: '17', text: '', ok: false },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_02.ogg', duration: 6.43, chars: '21~33 字', animation: '18', text: '', ok: false },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_03.ogg', duration: 1.33, chars: '4~6 字', animation: '03', text: '', ok: false },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_04.ogg', duration: 5.74, chars: '19~29 字', animation: '99', text: '', ok: false },
-        { audio: '/arona/spine_assets/plana/audio/zh/plana_05.ogg', duration: 1.67, chars: '5~8 字', animation: '20', text: '', ok: false }
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_01.ogg', duration: 9.12, animation: '17', text: '混乱，该行动无法理解，请不要戳我，我已出现故障。' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_02.ogg', duration: 6.43, animation: '18', text: '我明白了，老师现在无事可做，很无聊。' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_03.ogg', duration: 1.33, animation: '03', text: '确认连接...' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_04.ogg', duration: 5.74, animation: '99', text: '正在待命，需要解决的问题，还有很多。' },
+        { audio: '/arona/spine_assets/plana/audio/zh/plana_05.ogg', duration: 1.67, animation: '20', text: '等您很久了~' }
       ],
       /* plana 目录同样没有 copy 语音（只有 kei 有 kei_copy.ogg） */
       copyConfig: { animation: '07', text: '复制好了……能帮上你就行。' }

@@ -116,8 +116,12 @@ for (const k of Object.keys(DATA)) {
   tabs.appendChild(b)
 }
 
-const lo = d => Math.ceil((d * 3.2) / 10) * 10
-const hi = d => Math.floor((d * 5.2) / 10) * 10
+/* 建议字数 = 时长 × 语速下限/上限。
+   早先用 10 的倍数取整，短时长（1.33s → 上界 6.9 字）会算出
+   lo > hi 的反向区间，显示成「建议 10~0」这种自相矛盾的结果。
+   改为 1 字精度并强制 lo <= hi。 */
+const lo = d => Math.max(1, Math.floor(d * 3.2))
+const hi = d => Math.max(lo(d), Math.round(d * 5.2))
 const key = (c, i) => c + '_' + i
 
 function render() {
