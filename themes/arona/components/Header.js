@@ -87,6 +87,69 @@ export const Header = props => {
     return router.asPath.startsWith(path)
   }
 
+  /* 移动端主菜单抽屉（≤768px）。
+     桌面端不参与（CSS 里没有对应规则，抽屉永远是隐藏态），
+     但 state 仍会维护 —— 视口跨断点时行为才能连续。 */
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  /* 抽屉里展开了哪个父项的下标（accordion，一次只开一个） */
+  const [expandedSub, setExpandedSub] = useState(null)
+
+  const isMobile = () => window.matchMedia('(max-width: 768px)').matches
+
+  /* 汉堡按钮的三条线在两种用途间切换：
+       桌面 → 开下面板（主题/特效开关）
+       移动 → 开主菜单抽屉
+     所以移动端点汉堡时不能只 setOpen，必须把抽屉也打开。 */
+  const onHamburgerClick = e => {
+    e.stopPropagation()
+    if (isMobile()) {
+      setDrawerOpen(v => !v)
+      if (drawerOpen) setExpandedSub(null)
+    } else {
+      setOpen(v => !v)
+    }
+  }
+
+  /* 抽屉态下点击遮罩关闭。遮罩是独立元素（见 JSX），
+     这里用捕获阶段监听，若点中它就收抽屉，不依赖冒泡到 document 的判断。 */
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onBackdrop = e => {
+      if (e.target.classList && e.target.classList.contains('menu-backdrop')) {
+        setDrawerOpen(false)
+        setExpandedSub(null)
+      }
+    }
+    document.addEventListener('click', onBackdrop)
+    return () => document.removeEventListener('click', onBackdrop)
+  }, [drawerOpen])
+
+  /* Esc 关闭（桌面端不响应，桌面没有抽屉）。 */
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKey = e => {
+      if (e.key === 'Escape') {
+        setDrawerOpen(false)
+        setExpandedSub(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [drawerOpen])
+
+  /* 视口从窄屏拉回宽屏时收起抽屉，否则会残留一个覆盖层挡住页面。 */
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const onChange = e => {
+      if (!e.matches) {
+        setDrawerOpen(false)
+        setExpandedSub(null)
+      }
+    }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
   // 点击外部关闭
   useEffect(() => {
     const onDocClick = e => {
@@ -105,6 +168,8 @@ export const Header = props => {
   // 路由变化关闭
   useEffect(() => {
     setOpen(false)
+    setDrawerOpen(false)
+    setExpandedSub(null)
   }, [router.asPath])
 
   /* 菜单横向溢出检测。
@@ -130,6 +195,15 @@ export const Header = props => {
     const ul = menuListRef.current
     if (!box || !ul) return
     const check = () => {
+      /* 移动端（≤768px）菜单折进汉堡抽屉、竖排展示，
+         既不需要横向滚动也不会溢出 —— 加 menu-scroll 反而会让
+         ul 变成滚动容器（overflow-y 被算成 auto）而裁掉子菜单。
+         这里直接跳过，并清掉可能残留的类。 */
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        ul.classList.remove('menu-scroll')
+        box.classList.remove('menu-scroll-hint')
+        return
+      }
       /* 已启用滚动时 scrollWidth == clientWidth 量不出是否该溢出，
          故先同步摘掉类，量完再按需加回。 */
       ul.classList.remove('menu-scroll')
@@ -166,7 +240,10 @@ export const Header = props => {
   }, [links.length])
 
   return (
-    <header className={`arona-container arona-header ${post ? 'postViewer' : ''}`}>
+    <header
+      className={`arona-container arona-header ${post ? 'postViewer' : ''} ${
+        drawerOpen ? 'menu-drawer-open' : ''
+      }`}>
       <nav ref={navRef}>
         <span className='logo'>
           <SmartLink href='/' aria-label='首页'>
@@ -174,23 +251,42 @@ export const Header = props => {
           </SmartLink>
         </span>
 
+        {/* 移动端抽屉打开时的遮罩。放在菜单之前，z-index 低于菜单。 */}
+        {drawerOpen && <div className='menu-backdrop' aria-hidden='true' />}
+
         {/* 滚动类由上面的 useEffect 实测后直接加在 DOM 上（不走 React state），
             所以这里保持静态 className，不参与重渲染。 */}
         <span ref={menuRef} className='menu'>
           <ul ref={menuListRef}>
             {links.map((link, index) => {
-              /* Notion 的父级菜单（如「往期整理」）自身 href 常见为 "/#" 或 "#"，
-                 真正可点的是它的 subMenus（如「历史归档」→ /archive）。
-                 这里把父项的 href 兜底到第一个子菜单，避免点击后停在原地。 */
-              const subs = Array.isArray(link.subMenus) ? link.subMenus.filter(s => s && s.show !== false && s.name) : []
-              /* Notion 的父级菜单（如「往期整理」）自身 href 常写成 "/#"、"#"、"/"，是个死链；
-                 真正可点的是它的 subMenus（如「历史归档」→ /archive）。
+              /* Notion 的父级菜单（如「往期整理」）自身 href 常写成 "/#"、"#"、"/"，
+                 是个死链；真正可点的是它的 subMenus（如「历史归档」→ /archive）。
                  若父项是死链，则把 href 兜底到第一个子菜单，点击父项也能真正跳转。 */
+              const subs = Array.isArray(link.subMenus) ? link.subMenus.filter(s => s && s.show !== false && s.name) : []
               const isDead = /^\/?#?$/.test(link.href || '')
               const parentHref = subs.length > 0 ? (isDead ? subs[0].href : link.href) : link.href
+              /* 抽屉（移动端）里父项只做展开/收起，不跳转 ——
+                 否则点「往期整理」会直接跳到第一个子项，
+                 想看另外两个子菜单就没法点了。
+                 宽屏下保持原样：hover 弹出子菜单，父项本身可点。 */
+              const onParentClick = e => {
+                if (!drawerOpen || subs.length === 0) return
+                e.preventDefault()
+                e.stopPropagation()
+                setExpandedSub(cur => (cur === index ? null : index))
+              }
               return (
-                <li key={index} className={subs.length > 0 ? 'has-sub' : undefined}>
-                  <SmartLink href={parentHref} className={isActive(link.href) ? 'active' : ''}>
+                <li
+                  key={index}
+                  className={
+                    (subs.length > 0 ? 'has-sub ' : '') +
+                    (drawerOpen && expandedSub === index ? 'sub-expanded' : '')
+                  }>
+                  <SmartLink
+                    href={parentHref}
+                    onClick={onParentClick}
+                    className={isActive(link.href) ? 'active' : ''}
+                    aria-expanded={drawerOpen && subs.length > 0 ? expandedSub === index : undefined}>
                     {subs.length > 0 && <i className={`${link.icon || 'fas fa-angle-right'} sub-arrow`} aria-hidden='true' />}
                     {link.name}
                   </SmartLink>
@@ -214,13 +310,10 @@ export const Header = props => {
 
         <button
           type='button'
-          className={`hamburger ${open ? 'active' : ''}`}
+          className={`hamburger ${open || drawerOpen ? 'active' : ''}`}
           aria-label='菜单'
-          aria-expanded={open}
-          onClick={e => {
-            e.stopPropagation()
-            setOpen(v => !v)
-          }}>
+          aria-expanded={drawerOpen || open}
+          onClick={onHamburgerClick}>
           <span className='line' />
           <span className='line' />
           <span className='line' />

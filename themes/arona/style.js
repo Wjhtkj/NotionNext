@@ -291,29 +291,15 @@ const Style = () => {
       -ms-overflow-style: none;
     }
     .arona-header .menu ul.menu-scroll::-webkit-scrollbar { display: none; }
-    /* 溢出 ⇒ 菜单放不下 ⇒ 视口已经足够窄，横向 hover 弹出子菜单本就不合理，
-       而且 ul 一旦是滚动容器（overflow-y 被算成 auto），子菜单必被裁。
-       所以这里直接把它降级为「常驻缩进」形态：静态定位、在 ul 内部正常撑开、
-       随菜单一起横向滑动，永不被裁。与下方 (hover: none) 同一套规则。 */
-    .arona-header .menu ul.menu-scroll li.has-sub > .sub-menu {
-      position: static;
-      transform: none;
-      min-width: 0;
-      margin: 0 0 4px 12px;
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-      box-shadow: none;
-      border-width: 0 0 0 2px;
-      border-radius: 0 12px 12px 0;
-    }
-    .arona-header .menu ul.menu-scroll li.has-sub > a .sub-arrow { transform: rotate(90deg); }
-
     /* menu-scroll 时子菜单常驻缩进会把 li 撑高（父项 + 三个子项 ≈ 170px），
        而 nav 写死 height: 72px + align-items: center ——
        li 超出后上下各溢出约 48px，顶部那项直接跑到视口外看不见。
        所以这状态下 nav 改为内容驱动高度、子项顶对齐，
-       让 nav 自己撑高到容纳整棵菜单。 */
+       让 nav 自己撑高到容纳整棵菜单。
+
+       注意：此规则只对「宽屏但菜单放不下」生效（如 700~1000px）。
+       ≤768px 走下面的移动端抽屉（.menu-drawer-open），
+       抽屉是 fixed 覆盖层、不参与 nav 布局，nav 高度不受影响。 */
     .arona-header:has(.menu ul.menu-scroll) nav {
       height: auto;
       min-height: 72px;
@@ -577,12 +563,140 @@ const Style = () => {
       outline: none;
     }
 
+    /* 桌面端遮罩兜底：抽屉是移动端专属交互，桌面端不该有遮罩。
+       JSX 里遮罩是 {drawerOpen && ...} 条件渲染，正常不会在桌面端出现；
+       但视口跨断点（比如移动端展开抽屉后转屏/拉宽）存在 state 残留的
+       可能 —— 那个窗口里遮罩会 fixed 铺满，把整页挡住且点不到菜单。
+       这里显式 display:none 兜底，不依赖 state 一定被清干净。 */
+    .arona-header .menu-backdrop { display: none; }
+
+    /* ==================================================================
+       移动端主菜单抽屉（≤768px）
+       ------------------------------------------------------------------
+       为什么不用「横向滑动」：移动端菜单有 6 个顶项（首页/友链/Github/
+       作品集/往期整理+3子项/关于），实测 360px 下 ul 的 scrollWidth=418
+       而 clientWidth=228 —— 「往期整理」和「关于」永远在屏外，用户必须
+       横向滑动才能发现它们，且没有任何提示。更糟的是早先为了不被裁而做的
+       「子菜单常驻缩进」会把 nav 从 64px 撑到 222px，导航栏吃掉小屏 28%
+       的高度，首屏内容与 Banner 都被挤没。
+
+       所以移动端改为常规做法：菜单折进汉堡按钮，点击后竖向抽屉展开。
+         · nav 高度固定 64px，不再被子菜单撑开
+         · 抽屉 fixed 覆盖，不参与 nav 布局
+         · 父项点击展开子项（accordion），全部竖排、超高可滚动
+         · 遮罩点击关闭
+       ================================================================== */
     @media (max-width: 768px) {
       .arona-header nav { height: 64px; }
-      .arona-header .menu { flex: 1; max-width: none; margin: 0 clamp(8px, 3vw, 16px); }
-      .arona-header .menu ul { gap: clamp(8px, 2vw, 16px); }
-      .arona-header .menu li a { font-size: 14px; padding: 8px 10px; }
       .arona-header .hamburger { width: 32px; }
+
+      /* 桌面端的 display:none 兜底在移动端要放开 */
+      .arona-header .menu-backdrop { display: block; }
+
+      /* 遮罩：fixed 铺满、盖住页面内容但压在抽屉之下。
+         z-index 98 < 抽屉 99，且都在 nav（z-index 100）内。 */
+      .arona-header .menu-backdrop {
+        position: fixed;
+        inset: 0;
+        top: 64px;
+        z-index: 98;
+        background: rgba(0, 0, 0, 0.35);
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+        animation: arona-fade-in 0.25s ease;
+      }      /* 抽屉本体。收起态用 visibility + opacity + pointer-events，
+         不用 display:none（那样做不了过渡，且 pointer-events 已足够
+         阻止收起态的误点）。 */
+      .arona-header .menu {
+        position: fixed;
+        top: 64px;
+        left: 0;
+        right: 0;
+        z-index: 99;
+        max-height: calc(100dvh - 64px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0;
+        padding: 8px clamp(12px, 4vw, 20px) 20px;
+        background: var(--triangle-background);
+        -webkit-backdrop-filter: var(--blur-val);
+        backdrop-filter: var(--blur-val);
+        border-bottom: 2px solid var(--foreground-color);
+        box-shadow: 0 8px 24px rgba(var(--blue-shadow-color), 0.5);
+        visibility: hidden;
+        opacity: 0;
+        transform: translateY(-12px);
+        transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+      }
+      .arona-header.menu-drawer-open .menu {
+        visibility: visible;
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      /* 竖排：不再横向滑动 */
+      .arona-header .menu ul,
+      .arona-header .menu ul.menu-scroll {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        width: 100%;
+        overflow: visible;
+      }
+      .arona-header .menu li {
+        width: 100%;
+        border-bottom: 1px solid rgba(128, 128, 128, 0.14);
+      }
+      .arona-header .menu li:last-child { border-bottom: none; }
+      .arona-header .menu li a {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 13px 12px;
+        font-size: 15px;
+        border-radius: 10px;
+      }
+      /* 子菜单默认收起，点父项才展开（accordion） */
+      .arona-header .menu li.has-sub > .sub-menu {
+        position: static;
+        transform: none;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        box-shadow: none;
+        display: none;
+        min-width: 0;
+        margin: 0;
+        padding: 0 0 6px 0;
+        border-width: 0;
+        background: transparent;
+      }
+      .arona-header .menu li.sub-expanded > .sub-menu { display: block; }
+      /* 父项（往期整理）：箭头在标题**左侧**，间距由父级 flex 的 gap 提供。
+         这里不加 margin-left:auto —— 图标字体加载失败时箭头宽度为 0，
+         auto 仍会把它甩到行尾、把标题挤到最左边（夹具实测复现过）。
+         min-width 保证图标缺失时间距不塌成 0，text-align 让旋转后的
+         图标仍以自身为中心，标题完全不受影响。 */
+      .arona-header .menu li.has-sub > a .sub-arrow {
+        min-width: 12px;
+        text-align: center;
+        transition: transform 0.25s ease;
+      }
+      .arona-header .menu li.sub-expanded > a .sub-arrow { transform: rotate(90deg); }
+      .arona-header .menu li.has-sub > .sub-menu li a {
+        padding: 10px 12px 10px 34px;
+        font-size: 14px;
+      }
+      /* 抽屉已把菜单全竖排展示，横向溢出提示不再有意义 */
+      .arona-header:has(.menu.menu-scroll-hint) nav::after { content: none; }
+    }
+
+    @keyframes arona-fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
     /* ==================================================================
