@@ -20,34 +20,14 @@ export const Header = props => {
   const [open, setOpen] = useState(false)
   const navRef = useRef(null)
 
-  // 构建菜单（与 example 主题 MenuList 逻辑一致，保留 NotionNext 功能）
+  /* 顶部菜单只保留三项：首页 / 往期整理（含三个子菜单）/ 关于。
+     搜索、归档、分类、标签四项按用户要求移除 —— 这几页并未下掉，
+     仍可通过站内链接或直接输网址访问，只是不在顶栏露出入口。
+     移除后菜单项从 7 项降到 3 项，窄屏更容易放下，
+     也顺带让 .menu-scroll（横向滚动降级）几乎不会触发。 */
   const buildLinks = () => {
     let links = [
       { icon: 'fas fa-home', name: locale?.NAV?.HOME || '首页', href: '/', show: true },
-      {
-        icon: 'fas fa-search',
-        name: locale?.NAV?.SEARCH || '搜索',
-        href: '/search',
-        show: siteConfig('ARONA_MENU_SEARCH', true, CONFIG)
-      },
-      {
-        icon: 'fas fa-archive',
-        name: locale?.NAV?.ARCHIVE || '归档',
-        href: '/archive',
-        show: siteConfig('ARONA_MENU_ARCHIVE', true, CONFIG)
-      },
-      {
-        icon: 'fas fa-folder',
-        name: locale?.COMMON?.CATEGORY || '分类',
-        href: '/category',
-        show: siteConfig('ARONA_MENU_CATEGORY', true, CONFIG)
-      },
-      {
-        icon: 'fas fa-tag',
-        name: locale?.COMMON?.TAGS || '标签',
-        href: '/tag',
-        show: siteConfig('ARONA_MENU_TAG', true, CONFIG)
-      },
       {
         /* 「关于」指向站内 /about。
            不加 external —— SmartLink 的外链判定是

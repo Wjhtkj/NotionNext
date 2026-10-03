@@ -55,6 +55,9 @@ export const DropdownMenu = ({ show }) => {
   const toggleSpine = () => {
     const next = !spineOn
     setSpineOn(next)
+    /* 读取侧（SpinePlayer.applySpineEnabled）用的是 !== 'false'，
+       这里必须写字符串 'false' / 'true' 而不是 String(next) 的其他形式，
+       否则两边语义对不上（写 false 而读时 !== 'false' 为真 → 关不掉）。 */
     try {
       localStorage.setItem('spine-enabled', String(next))
     } catch (e) {

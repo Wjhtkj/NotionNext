@@ -1135,6 +1135,37 @@ const Style = () => {
       }
     }
     .arona-spine-wrap.hidden { display: none !important; }
+
+    /* 看板娘被关闭时的兜底恢复入口。
+       .arona-spine-wrap.hidden 是 display:none !important，
+       关掉后角色整个不渲染 —— 用户看到的就是「点看板娘没反应」，
+       而唯一恢复途径是开汉堡面板或清缓存，隐蔽又难找。
+       这个小按钮只在角色缺席时出现，位置贴近角色原本的左下角，
+       低调不干扰浏览，但保证「关掉之后一定找得回来」。 */
+    .arona-spine-restore {
+      position: fixed;
+      left: 24px;
+      bottom: 24px;
+      z-index: 300;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: solid 2px var(--foreground-color);
+      border-radius: 50%;
+      background: var(--foreground-color);
+      color: var(--font-color-grey);
+      font-size: 15px;
+      cursor: pointer;
+      opacity: 0.5;
+      box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.6);
+      transition: opacity 0.2s var(--transition-curve), transform 0.2s var(--transition-curve);
+    }
+    .arona-spine-restore:hover { opacity: 1; transform: scale(1.08); }
+    .arona-spine-restore:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
+    @media (max-width: 768px) { .arona-spine-restore { left: 12px; bottom: 12px; } }
     .arona-spine-dialog {
       position: fixed;
       z-index: 301;

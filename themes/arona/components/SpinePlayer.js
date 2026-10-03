@@ -14,6 +14,10 @@ import CONFIG from '../config'
 export default function SpinePlayer() {
   const containerRef = useRef(null)
   const [dialog, setDialog] = useState({ text: '', left: 0, top: 0, width: 240, show: false })
+  /* 用户是否主动关掉了看板娘（存 localStorage）。
+     需要它是 state 而不是每次读 localStorage：关闭只发生一次，
+     但恢复入口要能跟着 hide/show 走；纯读 localStorage 无法触发重渲染。 */
+  const [disabled, setDisabled] = useState(false)
 
   useEffect(() => {
     if (!siteConfig('ARONA_SPINE_ENABLE', false, CONFIG)) return
@@ -517,9 +521,18 @@ export default function SpinePlayer() {
     const applySpineEnabled = enabled => {
       const el = containerRef.current
       if (el) el.classList.toggle('hidden', !enabled)
+      /* 同步给 state：关闭时渲染兜底恢复按钮，
+         否则一旦关过就再也找不到入口（表现成「点看板娘没反应」）。 */
+      setDisabled(!enabled)
     }
     const onSpineToggle = evt => {
-      applySpineEnabled(evt?.detail ? evt.detail.enabled : true)
+      const enabled = evt?.detail ? evt.detail.enabled : true
+      try {
+        localStorage.setItem('spine-enabled', String(enabled))
+      } catch (e) {
+        /* 隐私模式下写入失败：本次会话内仍能正常开关，只是不持久 */
+      }
+      applySpineEnabled(enabled)
     }
 
     // 主题切换时切换角色。
@@ -559,11 +572,16 @@ export default function SpinePlayer() {
          包一层箭头函数丢掉返回值，否则 Promise 被当成「handler 返回值」传出去。 */
       window.addEventListener('copy', onCopyWrap, true)
       window.addEventListener('spine-toggle', onSpineToggle)
+      /* localStorage 读取可能抛（隐私模式 / 存储被禁用），默认开启。
+         读取与写入都收敛到 readSpineEnabled / onSpineToggle 两处，
+         避免「读用 !== 'false'、写用 String(enabled)」这种不对称。 */
+      let enabled = true
       try {
-        applySpineEnabled(localStorage.getItem('spine-enabled') !== 'false')
+        enabled = localStorage.getItem('spine-enabled') !== 'false'
       } catch (err) {
         /* ignore */
       }
+      applySpineEnabled(enabled)
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onMount)
     else onMount()
@@ -586,6 +604,32 @@ export default function SpinePlayer() {
   return (
     <>
       <div className='arona-spine-wrap' ref={containerRef} />
+      {/* 看板娘被关掉时的兜底恢复入口。
+         问题：关闭状态存在 localStorage（'spine-enabled' === 'false'），
+         而 .arona-spine-wrap.hidden 是 display:none !important ——
+         角色整个不渲染，用户看到的就是「点看板娘没反应」，
+         而且唯一恢复途径是打开汉堡面板或清缓存，隐蔽又难找。
+         这里在被隐藏时渲染一个很小的按钮，点一下就地恢复。
+         刻意做成低调样式：只在角色缺席时出现，不干扰正常浏览。 */}
+      {disabled && (
+        <button
+          type='button'
+          className='arona-spine-restore'
+          aria-label='恢复看板娘'
+          title='看板娘已被关闭，点此恢复'
+          onClick={() => {
+            setDisabled(false)
+            try {
+              localStorage.setItem('spine-enabled', 'true')
+            } catch (e) {
+              /* 隐私模式下写入会失败，不影响本次恢复 */
+            }
+            window.dispatchEvent(new CustomEvent('spine-toggle', { detail: { enabled: true } }))
+          }}
+        >
+          <i className='fas fa-heart' aria-hidden='true' />
+        </button>
+      )}
       {dialog.show && (
         <div
           className='arona-spine-dialog'
