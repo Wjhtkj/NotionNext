@@ -594,25 +594,45 @@ const Style = () => {
       .arona-header .menu-backdrop { display: block; }
 
       /* 遮罩：fixed 铺满、盖住页面内容但压在抽屉之下。
-         z-index 98 < 抽屉 99，且都在 nav（z-index 100）内。 */
+         z-index 98 < 抽屉 99，且都在 nav（z-index 100）内。
+
+         高度不能用 inset 推导 —— nav 上有 backdrop-filter（毛玻璃），
+         而 backdrop-filter 会让该元素成为 position:fixed 的**包含块**。
+         于是 bottom:0 是相对 nav（高 64px）解析的，top:64px 又正好是
+         nav 的底边，高度算成 0，遮罩完全不生效、点遮罩关不掉抽屉
+         （线上实测 h=0）。改成显式的视口高度，与 nav 尺寸解耦。
+
+         宽度继续用 left/right:0 —— 相对 nav（含 backdrop-filter 的
+         包含块）解析正好等于内容容器宽度，比 100vw 更贴合版心，
+         也不会溢出屏幕。 */
       .arona-header .menu-backdrop {
         position: fixed;
-        inset: 0;
         top: 64px;
+        left: 0;
+        right: 0;
+        /* 两条高度做渐进增强：vh 老浏览器必支持，dvh 在移动端地址栏
+           收起时更准。 */
+        height: calc(100vh - 64px);
+        height: calc(100dvh - 64px);
         z-index: 98;
         background: rgba(0, 0, 0, 0.35);
         -webkit-backdrop-filter: blur(2px);
         backdrop-filter: blur(2px);
         animation: arona-fade-in 0.25s ease;
-      }      /* 抽屉本体。收起态用 visibility + opacity + pointer-events，
+      }
+
+      /* 抽屉本体。收起态用 visibility + opacity + pointer-events，
          不用 display:none（那样做不了过渡，且 pointer-events 已足够
-         阻止收起态的误点）。 */
+         阻止收起态的误点）。
+         left/right:0 相对 nav（含 backdrop-filter 的包含块）解析，
+         正好等于版心宽度；max-height 已是显式视口单位，不受该包含块影响。 */
       .arona-header .menu {
         position: fixed;
         top: 64px;
         left: 0;
         right: 0;
         z-index: 99;
+        max-height: calc(100vh - 64px);
         max-height: calc(100dvh - 64px);
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
