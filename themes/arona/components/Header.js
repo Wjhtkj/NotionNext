@@ -82,6 +82,36 @@ export const Header = props => {
     setOpen(false)
   }, [router.asPath])
 
+  /* 菜单横向溢出检测：溢出时给 .menu 加 menu-scroll-hint，
+     CSS 据此在右侧叠一层渐变，提示「还能往右滑」。
+     为什么用实测而不是媒体查询：菜单项数量由用户配置决定，
+     同一断点下可能溢出也可能不溢出，写死断点会误报或漏报。 */
+  const menuRef = useRef(null)
+  const [menuHint, setMenuHint] = useState(false)
+  useEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    const check = () => setMenuHint(el.scrollWidth > el.clientWidth + 2)
+    check()
+    /* rAF 防抖：resize 触发密集，且布局未稳定时读 clientWidth 会拿到中间值 */
+    let raf = 0
+    const onResize = () => {
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(check)
+    }
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    /* 菜单项内容变化（Notion 菜单异步加载完）也要重测 */
+    const ro = new ResizeObserver(onResize)
+    ro.observe(el)
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+      ro.disconnect()
+    }
+  }, [links.length])
+
   return (
     <header className={`arona-container arona-header ${post ? 'postViewer' : ''}`}>
       <nav ref={navRef}>
@@ -91,7 +121,7 @@ export const Header = props => {
           </SmartLink>
         </span>
 
-        <span className='menu'>
+        <span ref={menuRef} className={`menu ${menuHint ? 'menu-scroll-hint' : ''}`}>
           <ul>
             {links.map((link, index) => {
               /* Notion 的父级菜单（如「往期整理」）自身 href 常见为 "/#" 或 "#"，

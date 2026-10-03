@@ -275,6 +275,37 @@ const Style = () => {
       padding: 0;
     }
     .arona-header .menu::-webkit-scrollbar { display: none; }
+    /* 菜单横向溢出提示（.menu-scroll-hint 由 Header.js 依据
+       scrollWidth > clientWidth 实测后加在 .menu 上）。
+
+       实现位置的取舍：
+         · 放在 .menu 内的 ::after 不行 —— .menu 是 overflow-x:auto，
+           绝对定位元素会随横向滚动内容一起移动，滑到哪它跟到哪；
+         · 放在 nav 上则要算出 .menu 的右缘，菜单宽度随内容变化，
+           纯 CSS 算不出来。
+       所以用 JS 把 .menu 标记为 .menu-scroll-hint，
+       提示条画在 nav 上（position: sticky 的 nav 内，不随菜单滚动），
+       横向位置由 nav 的 padding-right 决定 —— nav 是 flex 容器，
+       菜单撑到可用宽度的右缘，紧贴汉堡按钮左侧，位置稳定。 */
+    .arona-header:has(.menu.menu-scroll-hint) nav::after {
+      content: '';
+      position: absolute;
+      right: 52px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 18px;
+      border-radius: 2px;
+      background: var(--color-blue);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    /* 不支持 :has() 的浏览器（Safari < 15.4、Firefox < 121）退回无提示：
+       菜单仍可横向滑动，只少了视觉引导 —— 可接受的降级，
+       总比为了提示牺牲内容可见性要好。 */
+    @supports not selector(:has(*)) {
+      .arona-header nav::after { content: none; }
+    }
     .arona-header .menu ul {
       display: flex;
       align-items: center;
@@ -1575,6 +1606,197 @@ const Style = () => {
        ================================================================== */
     #theme-arona .notion-page-content { color: var(--font-color-grey); }
     #theme-arona .notion-callout { border-radius: 16px; }
+
+    /* ==================================================================
+       全站响应式补丁
+       ------------------------------------------------------------------
+       放在文件末尾统一覆盖，而不是散落在各组件段落里。理由：
+         · 各段落的 @media 只处理自己关心的断点，跨组件的溢出没人负责
+           （实测：代码块 pre 在窄屏把内容裁掉、表格撑破容器、
+             360px 屏上正文与侧栏整体右溢出 30px）；
+         · 集中一处便于日后统一调整栅格与断点，不必逐段翻。
+       设计原则：断点只看「布局是否换行」，不看设备名 ——
+         1200 侧栏转纵向 / 1024 隐藏目录 / 900 header 收紧 /
+         768 主断点 / 640 压缩留白 / 480 窄屏字号。
+         比堆设备型号式断点更少冗余，也更容易预测。
+
+       注意：这些规则必须放在文件末尾才能覆盖前面的同优先级声明。
+    ================================================================== */
+
+    /* ---------- 全局兜底 ----------
+       任一子元素宽于视口时，页面会出现横向滚动条，
+       移动端表现为「整页可横向拖动」，体验很差。
+       用 clip 而非 hidden：hidden 会创建滚动容器，
+       从而让 position: sticky 失效（TOC 依赖 sticky）。 */
+    html, body { overflow-x: clip; }
+    @supports not (overflow-x: clip) { html, body { overflow-x: hidden; } }
+
+    /* flex/grid 子项补 min-width: 0 ——
+       flex 子项默认 min-width:auto，内容（长单词、pre、表格）会把它撑破，
+       只有显式归零才允许收缩。这是 flex 布局最常见的溢出来源。 */
+    .arona-main-flex > *,
+    .arona-post-layout > *,
+    .arona-content-col,
+    .arona-view-box,
+    .arona-content,
+    .arona-sidebar { min-width: 0; }
+
+    /* ---------- 1200：侧栏转纵向 ----------
+       原先要到 1024 才转；但 1024~1200 段侧栏仍占 288px，
+       正文只剩 888px，而 900~1024 段更窄，转纵向更早更合理。 */
+    @media (max-width: 1200px) {
+      .arona-main-flex { flex-direction: column; }
+      /* auto-fit + minmax：卡片数少于可放列数时（如 3 张卡放在 4 列的位置）
+         不会留下空轨道，而是让已有列平分宽度。
+         上限 1fr 不设固定列宽，卡片过少时整行铺满，
+         故再给 480px 以上限制最大列数，避免超宽屏下单卡横跨整行。 */
+      .arona-sidebar {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+      .arona-sidebar > .arona-side-card { margin-bottom: 0; }
+    }
+
+    /* ---------- 1024：隐藏目录侧栏 ---------- */
+    @media (max-width: 1024px) {
+      .arona-toc-sidebar { display: none; }
+      .arona-view-box,
+      .arona-post-layout.no-toc .arona-view-box {
+        margin: 0 auto;
+        max-width: 100%;
+      }
+    }
+
+    /* ---------- 900：header 菜单 ----------
+       注意：原先这里写的是 .arona-header .search-box，
+       但 arona 的 Header.js 根本没有 search-box 这个元素
+       （搜索走 .arona-search-dialog 弹窗），那两条规则从未生效。
+       900px 以下真正需要收紧的是菜单项间距与 logo 尺寸。 */
+    @media (max-width: 900px) {
+      .arona-header .menu ul { gap: clamp(6px, 1.6vw, 14px); }
+      .arona-header .menu li a { padding: 8px 8px; font-size: 14px; }
+      .arona-header .logo img { height: 26px; min-width: 26px; }
+      /* nav 是 flex 且 space-between：logo / menu / hamburger 三者总宽
+         超过视口时，.menu 虽有 overflow-x:auto 仍会被 flex 挤出容器右缘
+         （实测 360px 下菜单末项右缘 365 > 360）。
+         min-width:0 让它能缩到可用宽度，内部再由自己的 overflow-x:auto 滚动。
+         额外的右侧留白由 .menu-scroll-hint 规则按需提供，不在这里写死。 */
+      .arona-header .menu { min-width: 0; }
+      .arona-header .hamburger { flex-shrink: 0; }
+    }
+
+    /* ---------- 768：主断点 ---------- */
+    @media (max-width: 768px) {
+      .arona-container { width: calc(100% - 24px); }
+      .arona-view-box { padding: clamp(16px, 4vw, 24px); border-radius: 24px; }
+      .arona-post-layout { padding: 0 12px; }
+      /* 侧栏保持 auto-fit 不改：768px 时容器约 728px，
+         auto-fit 放得下 2 列（每列 356px），比强制 1 列横跨 728px 更紧凑。
+         minmax 的 260px 下限已保证卡片不会被压到读不清。 */
+
+      /* 32px 的 h1 在 360px 屏上每行仅 9 字，视觉笨重；
+         用 clamp 让 768→480 之间平滑收缩，不需要多档断点。 */
+      .arona-content h1 { font-size: clamp(22px, 5.2vw, 28px); line-height: 1.4; }
+      .arona-content h2 { font-size: clamp(19px, 4.4vw, 24px); }
+      .arona-content h3 { font-size: clamp(17px, 4vw, 20px); }
+      .arona-content p { line-height: 1.9; }
+
+      /* 上一篇/下一篇两列并排时，每列不足 150px，中文标题逐字换行 */
+      .arona-post-nav { flex-direction: column; gap: 12px; }
+      .arona-post-nav-item { max-width: 100%; }
+    }
+
+    /* ---------- 900：平板竖屏，侧栏收为两列 ----------
+       900px 下 auto-fit 用 260px 下限会排出 3 列（每列 263px），
+       侧栏卡片（如公告正文、目录树）在这个宽度下读起来局促。
+       提高下限到 300px 使其降为 2 列。 */
+    @media (max-width: 900px) {
+      .arona-sidebar { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    }
+
+    /* ---------- 640：压缩留白 ---------- */
+    @media (max-width: 640px) {
+      .arona-container { width: calc(100% - 16px); }
+      .arona-view-box { padding: 16px 14px; border-radius: 18px; }
+      .arona-content blockquote { padding-left: 14px; }
+      .arona-content th, .arona-content td { padding: 8px 6px; }
+      /* 640 以下容器已不足 300px + gap，只能单列 */
+      .arona-sidebar { grid-template-columns: 1fr; }
+    }
+
+    /* ---------- 480：窄屏字号与圆角 ---------- */
+    @media (max-width: 480px) {
+      .arona-content h1 { font-size: 21px; }
+      .arona-content h2 { font-size: 18px; }
+      .arona-content h3 { font-size: 16px; }
+      .arona-content p { font-size: 15px; line-height: 1.9; }
+      .arona-content pre { padding: 12px; border-radius: 12px; }
+      .arona-content img { border-radius: 6px; }
+      .arona-side-card { padding: 16px 14px; }
+    }
+
+    /* ---------- 矮屏（横屏手机 / 矮窗口） ----------
+       header 用 75vh，横屏时 75vh 可能只有 160px，正文被挤出首屏。 */
+    @media (max-height: 560px) {
+      .arona-header,
+      .arona-banner { height: 56vh; min-height: 56vh; }
+      .arona-banner.postViewer { height: 40vh; }
+      .arona-toc { max-height: calc(100vh - 110px); }
+    }
+    @media (max-height: 420px) {
+      .arona-header,
+      .arona-banner { height: 46vh; min-height: 46vh; }
+    }
+
+    /* ---------- 超宽屏 ----------
+       容器封顶 1200px 后，超宽屏两侧大片留白，
+       而看板娘贴在 3% 处离正文很远。放宽到 1440px。 */
+    @media (min-width: 2000px) {
+      .arona-container,
+      .arona-view-box,
+      .arona-post-layout.no-toc .arona-view-box,
+      .arona-post-nav { max-width: 1440px; }
+    }
+
+    /* ---------- 长内容溢出防护（实测修复） ----------
+       .arona-content pre 原本是 overflow: hidden，
+       代码块超宽时内容被直接裁掉、无法滚动（等于内容丢失）。
+       改为 auto：超宽时出现横向滚动条。
+       table 改为 display:block + overflow-x:auto 才有滚动容器，
+       table 本身需保持 table 布局才能对齐列，故白名单 nowrap。 */
+    .arona-content pre {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      max-width: 100%;
+    }
+    .arona-content pre code {
+      display: block;
+      white-space: pre;
+      width: max-content;
+      min-width: 100%;
+    }
+    .arona-content table {
+      display: block;
+      overflow-x: auto;
+      max-width: 100%;
+      white-space: nowrap;
+    }
+    @media (max-width: 768px) {
+      .arona-content table { white-space: normal; }
+    }
+    /* 行内代码、长链接、连续英文（URL / hash / 报错栈）
+       是窄屏溢出的最常见来源，允许在任意位置断行。 */
+    .arona-content code,
+    .arona-content a {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .arona-content p,
+    .arona-content li { overflow-wrap: break-word; }
 
     /* 减少动态效果 */
     @media (prefers-reduced-motion: reduce) {
