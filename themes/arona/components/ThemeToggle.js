@@ -135,15 +135,18 @@ export const ThemeToggle = () => {
     const x = e && e.clientX ? e.clientX : rect ? rect.left + rect.width / 2 : window.innerWidth / 2
     const y = e && e.clientY ? e.clientY : rect ? rect.top + rect.height / 2 : window.innerHeight / 2
 
-    /* 旧主题底色与背景图（必须在换类之前读）。
-       正常路径读 #theme-arona 上的变量；万一取不到（选择器被改等情况），
-       按当前主题退回写死的两个底色 —— 总比让遮罩透明、把中间态漏出来好。 */
+    /* 旧主题的整页背景：直接取 #theme-arona **计算后**的背景，而不是读某个
+       CSS 变量。原因是页面根元素真正的 background-color 不一定来自
+       --general-background-color —— lib/themeConsoleStyle 会在样式表尾部生成
+       一条同特异性但排在后面的 #theme-arona { background-color: var(--arona-console-bg) }，
+       线上浅色实际是 #fff、深色是 #000（调色板 BG 令牌），读变量会拿到没生效的
+       那个值（#eaeff5 / #0f0f16），遮罩与旧页面差一个色阶、第一帧就会被看出来。
+       取计算值还顺带覆盖背景图与它的尺寸/定位/附着参数，遮罩与旧页面逐像素一致。 */
     const themeEl = document.getElementById('theme-arona') || document.documentElement
     const cs = getComputedStyle(themeEl)
     const wasDark = isDarkNow()
-    let oldColor = cs.getPropertyValue('--general-background-color').trim()
-    if (!oldColor) oldColor = wasDark ? '#0f0f16' : '#eaeff5'
-    const oldImage = cs.getPropertyValue('--theme-background-image').trim()
+    const oldColor = cs.backgroundColor
+    const oldImage = cs.backgroundImage
 
     /* 连点时先撤掉上一段动画的遮罩 */
     if (rippleRef.current) {
@@ -155,15 +158,21 @@ export const ThemeToggle = () => {
     ripple.className = 'arona-theme-ripple'
     ripple.style.setProperty('--arona-ripple-x', `${x}px`)
     ripple.style.setProperty('--arona-ripple-y', `${y}px`)
-    if (oldColor) ripple.style.backgroundColor = oldColor
+    /* 底色：计算值里 transparent 的页面不该让遮罩透明（中间态会漏出来），
+       此时按当前主题退回写死的两个底色。 */
+    if (oldColor && oldColor !== 'rgba(0, 0, 0, 0)' && oldColor !== 'transparent') {
+      ripple.style.backgroundColor = oldColor
+    } else {
+      ripple.style.backgroundColor = wasDark ? '#0f0f16' : '#eaeff5'
+    }
     if (oldImage && oldImage !== 'none') {
-      /* 背景图与 #theme-arona 同参数（cover / center / fixed），
-         这样遮罩不只是纯色块，而是和旧页面背景逐像素一致。 */
+      /* 背景图连同尺寸/定位/附着参数一起搬过来，遮罩就不只是纯色块，
+         而是和旧页面背景逐像素一致。 */
       ripple.style.backgroundImage = oldImage
-      ripple.style.backgroundSize = 'cover'
-      ripple.style.backgroundRepeat = 'no-repeat'
-      ripple.style.backgroundPosition = 'center'
-      ripple.style.backgroundAttachment = 'fixed'
+      ripple.style.backgroundSize = cs.backgroundSize
+      ripple.style.backgroundRepeat = cs.backgroundRepeat
+      ripple.style.backgroundPosition = cs.backgroundPosition
+      ripple.style.backgroundAttachment = cs.backgroundAttachment
     }
     document.body.appendChild(ripple)
     rippleRef.current = ripple
