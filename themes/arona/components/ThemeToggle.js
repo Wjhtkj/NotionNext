@@ -25,6 +25,11 @@ import { useEffect, useRef, useState } from 'react'
  *                            首次加载都要按 APPEARANCE 默认色闪一下。
  *      arona-theme-pref  —— SpinePlayer 靠它选看板娘角色（arona/plana），
  *                            LayoutBase 首次加载也读它。
+ *
+ * 3) 切换动画是「以按钮为圆心的圆形揭幕」（详见 toggleTheme 内的时序注释）：
+ *    先铺一层与旧页面背景一致的遮罩，在遮罩底下换主题，再把遮罩的
+ *    clip-path 圆收回到点击点。四步必须在同一个 JS 任务里同步完成，
+ *    浏览器只会画一帧，用户才看不到「旧页面闪一下新颜色」的中间态。
  */
 export const ThemeToggle = () => {
   const { isDarkMode, updateDarkMode } = useGlobal()
@@ -32,6 +37,8 @@ export const ThemeToggle = () => {
      APPEARANCE），与服务端渲染一致，不会 hydration 报警。 */
   const [dark, setDark] = useState(!!isDarkMode)
   const animTimer = useRef(null)
+  /* 正在播放的揭幕遮罩，连点时先移除旧的那个，避免叠多层 */
+  const rippleRef = useRef(null)
 
   /* 别人改了主题也要同步文案（例如将来再加别的切换入口）。
      监听 <html> 的 class/theme 属性即可，这是全局唯一的事实来源。 */
@@ -51,17 +58,26 @@ export const ThemeToggle = () => {
     return () => mo.disconnect()
   }, [])
 
-  useEffect(() => () => {
-    if (animTimer.current) clearTimeout(animTimer.current)
-  }, [])
+  /* 卸载时清掉计时器与可能残留的遮罩 */
+  useEffect(
+    () => () => {
+      if (animTimer.current) clearTimeout(animTimer.current)
+      if (rippleRef.current) {
+        rippleRef.current.remove()
+        rippleRef.current = null
+      }
+    },
+    []
+  )
 
   const isDarkNow = () =>
     document.documentElement.classList.contains('dark') ||
     document.documentElement.getAttribute('theme') === 'dark'
 
-  const toggleTheme = () => {
+  /* 真正换主题（不带动画）。抽出成函数是因为圆形揭幕要先铺遮罩、
+     再在遮罩底下调用它，减少动画时也直接调用它。 */
+  const applyTheme = next => {
     const root = document.documentElement
-    const next = !isDarkNow()
 
     try {
       localStorage.setItem('darkMode', String(next))
@@ -91,6 +107,79 @@ export const ThemeToggle = () => {
       root.classList.remove('arona-theme-anim')
       animTimer.current = null
     }, 400)
+  }
+
+  /* 主题切换动画：以按钮为圆心的「圆形揭幕」。
+     时序要点 —— 铺遮罩、强制布局、换主题、收缩圆，四步必须在同一个
+     JS 任务里跑完，浏览器只会画一帧：
+       1. 遮罩底色/背景图取自**旧**主题的 CSS 变量（此刻 <html> 还没换类），
+          盖上来的首帧与旧页面底色逐像素一致，用户感知不到闪；
+       2. void offsetWidth 强制布局，把「整屏圆」提交为过渡起点；
+       3. 在遮罩底下换主题，中间态被遮罩盖住；
+       4. 圆收回到点击点，新主题随圆边后退被一圈圈揭开。
+     半径用 150%：circle 的百分比按 sqrt(w²+h²)/√2 解析，
+     从视口任意点击点出发都盖满整屏。 */
+  const toggleTheme = e => {
+    const next = !isDarkNow()
+
+    /* 尊重系统「减少动画」：直接换，不插遮罩 */
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      applyTheme(next)
+      return
+    }
+
+    /* 点击坐标。键盘触发（Enter/Space）时 clientX/Y 都是 0，
+       用按钮中心兜底，动画仍然从按钮位置展开。 */
+    const btn = e && e.currentTarget
+    const rect = btn ? btn.getBoundingClientRect() : null
+    const x = e && e.clientX ? e.clientX : rect ? rect.left + rect.width / 2 : window.innerWidth / 2
+    const y = e && e.clientY ? e.clientY : rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+
+    /* 旧主题底色与背景图（必须在换类之前读）。
+       正常路径读 #theme-arona 上的变量；万一取不到（选择器被改等情况），
+       按当前主题退回写死的两个底色 —— 总比让遮罩透明、把中间态漏出来好。 */
+    const themeEl = document.getElementById('theme-arona') || document.documentElement
+    const cs = getComputedStyle(themeEl)
+    const wasDark = isDarkNow()
+    let oldColor = cs.getPropertyValue('--general-background-color').trim()
+    if (!oldColor) oldColor = wasDark ? '#0f0f16' : '#eaeff5'
+    const oldImage = cs.getPropertyValue('--theme-background-image').trim()
+
+    /* 连点时先撤掉上一段动画的遮罩 */
+    if (rippleRef.current) {
+      rippleRef.current.remove()
+      rippleRef.current = null
+    }
+
+    const ripple = document.createElement('div')
+    ripple.className = 'arona-theme-ripple'
+    ripple.style.setProperty('--arona-ripple-x', `${x}px`)
+    ripple.style.setProperty('--arona-ripple-y', `${y}px`)
+    if (oldColor) ripple.style.backgroundColor = oldColor
+    if (oldImage && oldImage !== 'none') {
+      /* 背景图与 #theme-arona 同参数（cover / center / fixed），
+         这样遮罩不只是纯色块，而是和旧页面背景逐像素一致。 */
+      ripple.style.backgroundImage = oldImage
+      ripple.style.backgroundSize = 'cover'
+      ripple.style.backgroundRepeat = 'no-repeat'
+      ripple.style.backgroundPosition = 'center'
+      ripple.style.backgroundAttachment = 'fixed'
+    }
+    document.body.appendChild(ripple)
+    rippleRef.current = ripple
+    void ripple.offsetWidth /* 强制布局：让「整屏圆」成为过渡起点 */
+
+    applyTheme(next)
+
+    ripple.classList.add('arona-theme-ripple-shrink')
+
+    const done = () => {
+      ripple.remove()
+      if (rippleRef.current === ripple) rippleRef.current = null
+    }
+    ripple.addEventListener('transitionend', done, { once: true })
+    /* transitionend 兜底：标签页在后台时过渡不跑，计时器照样清理 */
+    setTimeout(done, 900)
   }
 
   const label = dark ? '切换到浅色模式' : '切换到深色模式'

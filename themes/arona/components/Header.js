@@ -310,21 +310,30 @@ export const Header = props => {
           </ul>
         </span>
 
-        {/* 专门的深浅色切换按钮（一步到位，不用再展开下拉面板选主题） */}
-        <ThemeToggle />
+        {/* 右侧动作区：深浅色切换 + 汉堡 + 汉堡展开的面板。
+            包一层 .nav-actions 有两个目的：
+            1) 顶栏整体居中后汉堡不再贴右缘，下拉面板若还相对 nav 定位
+               （right:0）会脱着按钮几十像素。让面板相对本容器定位，
+               右键缘恒等于汉堡右缘，布局怎么改都不脱锚。
+            2) 容器 height:100% + 相对定位，面板的 top:100% 仍落在
+               nav 底边上，不会因为容器只有 32px 高而探进导航栏里。 */}
+        <span className='nav-actions'>
+          {/* 专门的深浅色切换按钮（一步到位，不用再展开下拉面板选主题） */}
+          <ThemeToggle />
 
-        <button
-          type='button'
-          className={`hamburger ${open || drawerOpen ? 'active' : ''}`}
-          aria-label='菜单'
-          aria-expanded={drawerOpen || open}
-          onClick={onHamburgerClick}>
-          <span className='line' />
-          <span className='line' />
-          <span className='line' />
-        </button>
+          <button
+            type='button'
+            className={`hamburger ${open || drawerOpen ? 'active' : ''}`}
+            aria-label='菜单'
+            aria-expanded={drawerOpen || open}
+            onClick={onHamburgerClick}>
+            <span className='line' />
+            <span className='line' />
+            <span className='line' />
+          </button>
 
-        <DropdownMenu show={open} />
+          <DropdownMenu show={open} />
+        </span>
       </nav>
     </header>
   )

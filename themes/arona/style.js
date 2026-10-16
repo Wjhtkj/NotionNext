@@ -246,7 +246,14 @@ const Style = () => {
       pointer-events: auto;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      /* 整体居中：LOGO / 菜单 / 动作区作为一个组停在导航栏正中。
+         原先这里是 space-between（LOGO 贴左、按钮贴右），按用户要求改为居中。
+         注意 center 与 space-between 的一个真实差异：内容超宽时
+         space-between 把溢出挤到右侧之外，center 则向两侧同时溢出 ——
+         但 .menu 有 min-width:0 + 溢出时内部横向滚动（见 .menu-scroll），
+         LOGO 与动作区都是 flex-shrink:0 的定宽，组宽永远缩得回来，
+         不会出现两侧溢出。 */
+      justify-content: center;
       position: sticky;
       top: 0;
       height: 72px;
@@ -261,6 +268,18 @@ const Style = () => {
       -webkit-backdrop-filter: var(--blur-val);
       backdrop-filter: var(--blur-val);
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.8);
+    }
+    /* 右侧动作区（ThemeToggle + 汉堡 + 下拉面板，见 Header.js）。
+       height:100% 是为了让下拉面板的 top:100% 正好落在 nav 底边
+       （容器若只有 32px 高，面板会探进导航栏里 20px）；
+       position:relative 是给绝对定位的面板当包含块，让它跟着汉堡走。 */
+    .arona-header .nav-actions {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      flex-shrink: 0;
+      gap: 6px;
     }
     .arona-header .logo { display: flex; align-items: center; height: 100%; cursor: pointer; }
     .arona-header .logo a { display: flex; align-items: center; height: 100%; }
@@ -282,6 +301,10 @@ const Style = () => {
       padding: 0;
       /* flex 子项需允许收缩，否则菜单总宽会挤走 logo 与汉堡按钮 */
       min-width: 0;
+      /* 给下方 .menu-scroll-hint 的 ::after 当包含块 —— span 是行内元素，
+         不设 position:relative 的话绝对定位会一路向上找到 nav，
+         提示条就钉死在导航栏右缘（顶栏居中后那里已经不是菜单边缘了）。 */
+      position: relative;
     }
     /* 仅在实测溢出时（Header.js 加 .menu-scroll）才成为滚动容器。
        代价是子菜单重新被裁（见下方 .menu-scroll 下的降级规则）。 */
@@ -311,19 +334,18 @@ const Style = () => {
        scrollWidth > clientWidth 实测后加在 .menu 上）。
 
        实现位置的取舍：
-         · 放在 .menu 内的 ::after 不行 —— 加了 .menu-scroll 后
-           ul 才是滚动容器，但 .menu 本身始终是 overflow: visible，
-           绝对定位元素会「固定在滚动位置之外」，不跟着内容走；
-         · 放在 ul 内更糟 —— 绝对定位会随横向滚动内容一起移动，
-           滑到哪它跟到哪。
-       所以用 JS 把 .menu 标记为 .menu-scroll-hint，
-       提示条画在 nav 上（position: sticky 的 nav 内，不随菜单滚动），
-       横向位置由 nav 的 padding-right 决定 —— nav 是 flex 容器，
-       菜单撑到可用宽度的右缘，紧贴汉堡按钮左侧，位置稳定。 */
-    .arona-header:has(.menu.menu-scroll-hint) nav::after {
+         · 放在 ul 内不行 —— 绝对定位会随横向滚动内容一起移动，滑到哪它跟到哪；
+         · 放在 nav 上（:has() 选择）曾是旧方案，但提示条位置只能写死
+           right:52px，那是「space-between 布局下菜单右缘紧贴汉堡左侧」
+的推算值；顶栏改为整体居中后菜单右缘不再贴汉堡，写死的位置会脱锚。
+       所以最终画在 .menu 的 ::after 上：.menu 已设 position:relative，
+       而 ul（溢出时才是滚动容器）作为块级子元素撑满 .menu 的内容宽，
+       两者右缘重合 —— right:0 恰好是滚动视口的右缘，菜单滑动时
+       提示条不动，位置与菜单边缘严格对齐，且不依赖 :has()。 */
+    .arona-header .menu.menu-scroll-hint::after {
       content: '';
       position: absolute;
-      right: 52px;
+      right: 0;
       top: 50%;
       transform: translateY(-50%);
       width: 3px;
@@ -332,12 +354,6 @@ const Style = () => {
       background: var(--color-blue);
       opacity: 0.5;
       pointer-events: none;
-    }
-    /* 不支持 :has() 的浏览器（Safari < 15.4、Firefox < 121）退回无提示：
-       菜单仍可横向滑动，只少了视觉引导 —— 可接受的降级，
-       总比为了提示牺牲内容可见性要好。 */
-    @supports not selector(:has(*)) {
-      .arona-header nav::after { content: none; }
     }
     .arona-header .menu ul {
       display: flex;
@@ -485,12 +501,10 @@ const Style = () => {
       width: 32px;
       height: 32px;
       min-width: 32px;
-      /* margin-left:auto 把「切换按钮 + 汉堡」这一组整体推到最右。
-         nav 是 justify-content:space-between，多一个子项就会把余量
-         摊到每一个间隙上 —— 实测按钮与汉堡之间被拉开 72px，
-         两个本应该挨在一起的动作按钮散在两边。 */
-      margin-left: auto;
-      margin-right: 6px;
+      /* 与汉堡的 6px 间距由 .nav-actions 的 gap 负责。
+         原先这里写 margin-left:auto 把动作组推到最右（nav 当年是
+         space-between）；顶栏改整体居中后auto 会把组重新推偏，必须去掉。 */
+      margin-right: 0;
       padding: 0;
       border: none;
       border-radius: 50%;
@@ -545,16 +559,74 @@ const Style = () => {
 
     /* 主题切换时的颜色过渡：点击时给 <html> 挂一个短命的 .arona-theme-anim，
        400ms 后由 JS 摘掉。只过渡 background-color / border-color / color，
-       不碰 background 简写 —— 简写会把背景图一起重置掉。
-       刻意不含 .arona-post-card / .arona-side-card：它们自带
-       transform/box-shadow 过渡，在这里覆盖 transition 会让 hover
-       浮升在切换瞬间变成硬跳。 */
+       不碰 background 简写 —— 简写会把背景图一起重置掉。 */
     html.arona-theme-anim #theme-arona,
     html.arona-theme-anim .arona-header nav {
       transition:
         background-color 0.35s ease,
         border-color 0.35s ease,
         color 0.35s ease;
+    }
+    /* 卡片类表面也要跟着变色，否则圆形揭幕 revealing 到它们时颜色是硬跳的。
+       做法上的取舍：不新建 transition 列表，而是**沿用各表面自己的
+       transition 时长/曲线**，只在末尾追加 background-color ——
+       这样 hover 浮升（transform/box-shadow）的手感与平时完全一致，
+       不会出现「切换主题的 400ms 内 hover 变成硬跳」的副作用。
+       类摘掉后各表面回到自己的规则，无残留。 */
+    html.arona-theme-anim .arona-post-card {
+      transition:
+        transform 0.5s cubic-bezier(0.22, 0.68, 0, 1),
+        box-shadow 0.5s ease,
+        border-color 0.5s ease,
+        background-color 0.5s ease;
+    }
+    html.arona-theme-anim .arona-sidebar .arona-side-card,
+    html.arona-theme-anim .arona-footer,
+    html.arona-theme-anim .arona-dropdown .menu-content {
+      transition:
+        background-color 0.4s ease,
+        border-color 0.4s ease,
+        box-shadow 0.4s ease,
+        color 0.4s ease;
+    }
+
+    /* ==================================================================
+       主题切换的「圆形揭幕」动画
+       ------------------------------------------------------------------
+       遮罩由 ThemeToggle.js 在点击时动态插入 <body>，类名与 CSS 变量：
+         .arona-theme-ripple                铺满全屏，clip-path 为整屏圆
+         .arona-theme-ripple-shrink         圆收回到点击点（过渡态）
+         --arona-ripple-x / --arona-ripple-y 点击点（视口坐标）
+
+       完整时序（同一个 JS 任务内同步完成，浏览器只画一帧）：
+         1. 插入遮罩，底色与背景图取自**旧**主题变量 —— 首帧与旧页面一致；
+         2. void offsetWidth 强制布局，把「整屏圆」提交为过渡起点；
+         3. 在遮罩底下换 <html> 的 dark/light 类；
+         4. 加 -shrink 类，圆收回到点击点，新主题被一圈圈揭开；
+         5. transitionend（+900ms 兜底定时器）后移除遮罩。
+
+       半径 150%：circle 的百分比按 sqrt(w²+h²)/√2 解析，
+       从视口任意点击点出发都盖满整屏；0px 时整圆消失。
+       ================================================================== */
+    .arona-theme-ripple {
+      position: fixed;
+      inset: 0;
+      /* 压过所有内容：Splash、抽屉（99）、导航（100）都盖得住 */
+      z-index: 2147483647;
+      pointer-events: none;
+      -webkit-clip-path: circle(150% at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
+      clip-path: circle(150% at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
+      transition: clip-path 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: clip-path;
+    }
+    .arona-theme-ripple-shrink {
+      -webkit-clip-path: circle(0px at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
+      clip-path: circle(0px at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
+    }
+    /* 减少动画时 JS 根本不会插入遮罩；这条是纯 CSS 路径（如将来有别的
+       入口直接操作类）的双保险，让过渡即时完成。 */
+    @media (prefers-reduced-motion: reduce) {
+      .arona-theme-ripple { transition: none; }
     }
 
     /* 下拉菜单 */
@@ -825,8 +897,9 @@ const Style = () => {
         padding: 10px 12px 10px 34px;
         font-size: 14px;
       }
-      /* 抽屉已把菜单全竖排展示，横向溢出提示不再有意义 */
-      .arona-header:has(.menu.menu-scroll-hint) nav::after { content: none; }
+      /* 抽屉已把菜单全竖排展示，横向溢出提示不再有意义。
+         Header.js 在移动端也会摘掉 menu-scroll-hint，这里双保险。 */
+      .arona-header .menu.menu-scroll-hint::after { display: none; }
     }
 
     @keyframes arona-fade-in {
@@ -2155,11 +2228,11 @@ const Style = () => {
       .arona-header .menu ul { gap: clamp(6px, 1.6vw, 14px); }
       .arona-header .menu li a { padding: 8px 8px; font-size: 14px; }
       .arona-header .logo img { height: 26px; min-width: 26px; }
-      /* nav 是 flex 且 space-between：logo / menu / hamburger 三者总宽
-         超过视口时，.menu 虽有 overflow-x:auto 仍会被 flex 挤出容器右缘
-         （实测 360px 下菜单末项右缘 365 > 360）。
-         min-width:0 让它能缩到可用宽度，内部再由自己的 overflow-x:auto 滚动。
-         额外的右侧留白由 .menu-scroll-hint 规则按需提供，不在这里写死。 */
+      /* nav 是 flex 且整体居中：logo / menu / 动作区三者总宽超过视口时，
+         .menu 虽有 overflow-x:auto 仍会被 flex 挤出容器（实测 360px 下
+         菜单末项右缘 365 > 360）。min-width:0 让它能缩到可用宽度，
+         内部再由自己的 overflow-x:auto 滚动；logo 与动作区定宽不缩，
+         保证居中组永远不会单向溢出。 */
       .arona-header .menu { min-width: 0; }
       .arona-header .hamburger { flex-shrink: 0; }
     }
