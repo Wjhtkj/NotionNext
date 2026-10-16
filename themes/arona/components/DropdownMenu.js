@@ -1,45 +1,31 @@
 'use client'
 
-import { siteConfig } from '@/lib/config'
-import { useGlobal } from '@/lib/global'
 import SmartLink from '@/components/SmartLink'
+import { siteConfig } from '@/lib/config'
 import { useEffect, useState } from 'react'
 import CONFIG from '../config'
 
 /**
  * 导航右侧的下拉面板（复刻 Endless647 DropdownMenu.astro）
- * 主题选择（Arona / Plana / System）、搜索、鼠标特效开关、看板娘开关
+ * 搜索入口、鼠标特效开关、看板娘开关
+ *
+ * 主题切换原先也在这里（Arona / Plana / System 三选一的 <select>），
+ * 现已改成导航上独立的专用按钮 components/ThemeToggle.js ——
+ * 换主题是高频操作，不值得埋四层深。本面板因此不再碰主题，
+ * 也不再需要 useGlobal。
  */
 export const DropdownMenu = ({ show }) => {
-  const { updateDarkMode } = useGlobal()
-  const [themePref, setThemePref] = useState('system')
   const [cursorOn, setCursorOn] = useState(true)
   const [spineOn, setSpineOn] = useState(true)
 
   useEffect(() => {
     try {
-      setThemePref(localStorage.getItem('arona-theme-pref') || 'system')
       setCursorOn(localStorage.getItem('cursor-effect-enabled') !== 'false')
       setSpineOn(localStorage.getItem('spine-enabled') !== 'false')
     } catch (e) {
       /* ignore */
     }
   }, [])
-
-  const applyTheme = val => {
-    setThemePref(val)
-    try {
-      localStorage.setItem('arona-theme-pref', val)
-    } catch (e) {
-      /* ignore */
-    }
-    if (val === 'system') {
-      const dark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      updateDarkMode?.(dark)
-    } else {
-      updateDarkMode?.(val === 'dark')
-    }
-  }
 
   const toggleCursor = () => {
     const next = !cursorOn
@@ -77,19 +63,6 @@ export const DropdownMenu = ({ show }) => {
             </SmartLink>
           </div>
         )}
-
-        <div className='toggle-row'>
-          <span className='label'>主题</span>
-          <select
-            className='arona-theme-select'
-            value={themePref}
-            onChange={e => applyTheme(e.target.value)}
-            aria-label='主题选择'>
-            <option value='light'>Arona</option>
-            <option value='dark'>Plana</option>
-            <option value='system'>System</option>
-          </select>
-        </div>
 
         <div className='toggle-row'>
           <span className='label'>鼠标特效</span>

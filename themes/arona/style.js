@@ -463,6 +463,100 @@ const Style = () => {
     .arona-header .hamburger.active .line:nth-child(2) { opacity: 0; }
     .arona-header .hamburger.active .line:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
 
+    /* ==================================================================
+       专门的深浅色切换按钮（components/ThemeToggle.js）
+       ------------------------------------------------------------------
+       放在汉堡按钮左边，一步换主题，不再埋在下拉面板的 select 里。
+
+       图标用**内联 SVG** 而不是 FontAwesome：FA 加载失败时图标宽度为 0、
+       布局会跟着塌（这个坑在 .sub-arrow 上已经踩过一次，见上面注释）。
+
+       两个图标都常驻 DOM，显隐完全由 <html> 的类决定，不依赖 JS state：
+       _document.js 的内联脚本在首屏绘制前就把 dark/light 设好了，
+       所以图标从第一帧就是对的；JS 只负责点击后的写值与 aria-label。
+       ================================================================== */
+    .arona-header .theme-toggle {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* 窄屏下 menu 是 fixed、logo 与两个按钮要能共存，不允许被压缩 */
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      /* margin-left:auto 把「切换按钮 + 汉堡」这一组整体推到最右。
+         nav 是 justify-content:space-between，多一个子项就会把余量
+         摊到每一个间隙上 —— 实测按钮与汉堡之间被拉开 72px，
+         两个本应该挨在一起的动作按钮散在两边。 */
+      margin-left: auto;
+      margin-right: 6px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--font-color-grey);
+      cursor: pointer;
+      outline: none;
+      transition:
+        background-color 0.3s ease,
+        color 0.3s ease,
+        transform 0.3s ease;
+    }
+    .arona-header .theme-toggle:hover {
+      background-color: rgba(var(--blue-shadow-color), 0.18);
+      color: var(--color-blue);
+      transform: translateY(-1px);
+    }
+    .arona-header .theme-toggle:active { transform: translateY(0) scale(0.92); }
+    .arona-header .theme-toggle svg {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      transition:
+        opacity 0.35s ease,
+        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* 默认（<html> 类还没就位的那一两帧）显示月亮 —— 与 blog.config 里
+       APPEARANCE 的默认值一致，避免亮/暗图标闪一下。 */
+    .arona-header .theme-toggle .icon-sun { opacity: 0; transform: rotate(-90deg) scale(0.4); }
+    .arona-header .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+    /* 深色 → 显示太阳（点它去浅色）；浅色 → 显示月亮（点它去深色） */
+    html.dark .arona-header .theme-toggle .icon-sun,
+    html[theme='dark'] .arona-header .theme-toggle .icon-sun {
+      opacity: 1;
+      transform: rotate(0deg) scale(1);
+    }
+    html.dark .arona-header .theme-toggle .icon-moon,
+    html[theme='dark'] .arona-header .theme-toggle .icon-moon {
+      opacity: 0;
+      transform: rotate(90deg) scale(0.4);
+    }
+    html.light .arona-header .theme-toggle .icon-moon,
+    html[theme='light'] .arona-header .theme-toggle .icon-moon {
+      opacity: 1;
+      transform: rotate(0deg) scale(1);
+    }
+    html.light .arona-header .theme-toggle .icon-sun,
+    html[theme='light'] .arona-header .theme-toggle .icon-sun {
+      opacity: 0;
+      transform: rotate(-90deg) scale(0.4);
+    }
+
+    /* 主题切换时的颜色过渡：点击时给 <html> 挂一个短命的 .arona-theme-anim，
+       400ms 后由 JS 摘掉。只过渡 background-color / border-color / color，
+       不碰 background 简写 —— 简写会把背景图一起重置掉。
+       刻意不含 .arona-post-card / .arona-side-card：它们自带
+       transform/box-shadow 过渡，在这里覆盖 transition 会让 hover
+       浮升在切换瞬间变成硬跳。 */
+    html.arona-theme-anim #theme-arona,
+    html.arona-theme-anim .arona-header nav {
+      transition:
+        background-color 0.35s ease,
+        border-color 0.35s ease,
+        color 0.35s ease;
+    }
+
     /* 下拉菜单 */
     .arona-header nav { position: relative; }
     .arona-dropdown {
@@ -549,19 +643,6 @@ const Style = () => {
     }
     .arona-switch input:checked + .slider { background-color: rgba(var(--blue-shadow-color), 0.6); }
     .arona-switch input:checked + .slider:before { transform: translateX(20px); }
-
-    /* 主题选择 */
-    .arona-theme-select {
-      padding: 6px 10px;
-      font-size: 14px;
-      font-weight: bold;
-      border-radius: 10px;
-      border: 1px solid rgba(var(--blue-shadow-color), 0.15);
-      background: var(--foreground-color);
-      color: var(--font-color-grey);
-      cursor: pointer;
-      outline: none;
-    }
 
     /* 桌面端遮罩兜底：抽屉是移动端专属交互，桌面端不该有遮罩。
        JSX 里遮罩是 {drawerOpen && ...} 条件渲染，正常不会在桌面端出现；

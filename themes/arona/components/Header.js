@@ -7,6 +7,7 @@ import { useRouter } from 'next/router'
 import { useEffect, useRef, useState } from 'react'
 import CONFIG from '../config'
 import { DropdownMenu } from './DropdownMenu'
+import { ThemeToggle } from './ThemeToggle'
 
 /**
  * 玻璃拟态顶部导航（复刻 Endless647 Header.astro）
@@ -97,8 +98,9 @@ export const Header = props => {
   const isMobile = () => window.matchMedia('(max-width: 768px)').matches
 
   /* 汉堡按钮的三条线在两种用途间切换：
-       桌面 → 开下面板（主题/特效开关）
+       桌面 → 开下面板（搜索 / 鼠标特效 / 看板娘开关）
        移动 → 开主菜单抽屉
+     深浅色切换是独立的专用按钮（ThemeToggle），不走这个面板。
      所以移动端点汉堡时不能只 setOpen，必须把抽屉也打开。 */
   const onHamburgerClick = e => {
     e.stopPropagation()
@@ -307,6 +309,9 @@ export const Header = props => {
             })}
           </ul>
         </span>
+
+        {/* 专门的深浅色切换按钮（一步到位，不用再展开下拉面板选主题） */}
+        <ThemeToggle />
 
         <button
           type='button'
