@@ -593,20 +593,25 @@ const Style = () => {
     /* ==================================================================
        主题切换的「圆形揭幕」动画
        ------------------------------------------------------------------
-       遮罩由 ThemeToggle.js 在点击时动态插入 <body>，类名与 CSS 变量：
-         .arona-theme-ripple                铺满全屏，clip-path 为整屏圆
-         .arona-theme-ripple-shrink         圆收回到点击点（过渡态）
-         --arona-ripple-x / --arona-ripple-y 点击点（视口坐标）
+       遮罩由 ThemeToggle.js 在点击时动态插入 <body>：
+         .arona-theme-ripple                铺满全屏，静态 clip-path 画圆
+         .arona-theme-ripple-shrink         transform 收缩到点击点（过渡态）
 
        完整时序（同一个 JS 任务内同步完成，浏览器只画一帧）：
-         1. 插入遮罩，底色与背景图取自**旧**主题变量 —— 首帧与旧页面一致；
-         2. void offsetWidth 强制布局，把「整屏圆」提交为过渡起点；
-         3. 在遮罩底下换 <html> 的 dark/light 类；
-         4. 加 -shrink 类，圆收回到点击点，新主题被一圈圈揭开；
-         5. transitionend（+900ms 兜底定时器）后移除遮罩。
+         1. 插入遮罩，底色/背景图复制 #theme-arona **计算后**的背景 ——
+            首帧与旧页面逐像素一致（注意不能读 --general-background-color：
+            themeConsoleStyle 在样式表尾部盖住了根元素底色，线上真正的
+            底色是调色板 BG 令牌，浅 #fff / 深 #000）；
+         2. clip-path 半径取「点击点到最远视口角的距离」，scale(1) 时正好盖满；
+         3. void offsetWidth 强制布局，把初始状态提交为过渡起点；
+         4. 在遮罩底下换 <html> 的 dark/light 类；
+         5. 加 -shrink 类，transform: scale(1) → scale(0)，圆随缩放向点击点收拢，
+            新主题被一圈圈揭开；transitionend（+900ms 兜底）后移除遮罩。
 
-       半径 150%：circle 的百分比按 sqrt(w²+h²)/√2 解析，
-       从视口任意点击点出发都盖满整屏；0px 时整圆消失。
+       为什么用 transform 而不是动画 clip-path：clip-path 过渡不走合成器，
+       每帧在主线程重绘整屏背景图，实测只有 ~43fps 且带 90ms 卡顿；
+       transform: scale() 由合成器执行，背景只画一次，稳定 60fps。
+       静态 clip-path 不参与动画，不会把元素拉回主线程。
        ================================================================== */
     .arona-theme-ripple {
       position: fixed;
@@ -614,14 +619,13 @@ const Style = () => {
       /* 压过所有内容：Splash、抽屉（99）、导航（100）都盖得住 */
       z-index: 2147483647;
       pointer-events: none;
-      -webkit-clip-path: circle(150% at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
-      clip-path: circle(150% at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
-      transition: clip-path 0.55s cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: clip-path;
+      /* scale(1) 是过渡起点；-shrink 收到 scale(0)。缩放原点由 JS 设为点击点 */
+      transform: scale(1);
+      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
     }
     .arona-theme-ripple-shrink {
-      -webkit-clip-path: circle(0px at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
-      clip-path: circle(0px at var(--arona-ripple-x, 50%) var(--arona-ripple-y, 50%));
+      transform: scale(0);
     }
     /* 减少动画时 JS 根本不会插入遮罩；这条是纯 CSS 路径（如将来有别的
        入口直接操作类）的双保险，让过渡即时完成。 */

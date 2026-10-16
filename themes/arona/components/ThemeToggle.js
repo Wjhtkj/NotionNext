@@ -112,13 +112,17 @@ export const ThemeToggle = () => {
   /* 主题切换动画：以按钮为圆心的「圆形揭幕」。
      时序要点 —— 铺遮罩、强制布局、换主题、收缩圆，四步必须在同一个
      JS 任务里跑完，浏览器只会画一帧：
-       1. 遮罩底色/背景图取自**旧**主题的 CSS 变量（此刻 <html> 还没换类），
-          盖上来的首帧与旧页面底色逐像素一致，用户感知不到闪；
-       2. void offsetWidth 强制布局，把「整屏圆」提交为过渡起点；
-       3. 在遮罩底下换主题，中间态被遮罩盖住；
-       4. 圆收回到点击点，新主题随圆边后退被一圈圈揭开。
-     半径用 150%：circle 的百分比按 sqrt(w²+h²)/√2 解析，
-     从视口任意点击点出发都盖满整屏。 */
+       1. 遮罩底色/背景图复制 #theme-arona **计算后**的背景（此刻 <html>
+          还没换类），盖上来的首帧与旧页面逐像素一致，用户感知不到闪；
+       2. clip-path 半径取「点击点到最远视口角的距离」，scale(1) 时正好盖满；
+       3. void offsetWidth 强制布局，把初始状态提交为过渡起点；
+       4. 在遮罩底下换主题，中间态被遮罩盖住；
+       5. transform: scale(1) → scale(0)（缩放原点=点击点），
+          旧背景圆随缩放向点击点收拢，新主题被一圈圈揭开。
+
+     为什么动画只跑 transform：clip-path 过渡不走合成器，每帧在主线程
+     重绘整屏背景图（实测 ~43fps + 90ms 卡顿）；transform: scale() 由
+     合成器执行、背景只画一次，稳定 60fps。静态 clip-path 不参与动画。 */
   const toggleTheme = e => {
     const next = !isDarkNow()
 
@@ -141,7 +145,7 @@ export const ThemeToggle = () => {
        一条同特异性但排在后面的 #theme-arona { background-color: var(--arona-console-bg) }，
        线上浅色实际是 #fff、深色是 #000（调色板 BG 令牌），读变量会拿到没生效的
        那个值（#eaeff5 / #0f0f16），遮罩与旧页面差一个色阶、第一帧就会被看出来。
-       取计算值还顺带覆盖背景图与它的尺寸/定位/附着参数，遮罩与旧页面逐像素一致。 */
+       取计算值还顺带覆盖背景图与它的尺寸/定位参数，遮罩与旧页面逐像素一致。 */
     const themeEl = document.getElementById('theme-arona') || document.documentElement
     const cs = getComputedStyle(themeEl)
     const wasDark = isDarkNow()
@@ -156,8 +160,12 @@ export const ThemeToggle = () => {
 
     const ripple = document.createElement('div')
     ripple.className = 'arona-theme-ripple'
-    ripple.style.setProperty('--arona-ripple-x', `${x}px`)
-    ripple.style.setProperty('--arona-ripple-y', `${y}px`)
+    /* 静态 clip-path：半径 = 点击点到最远视口角的距离（+2px 余量），
+       scale(1) 时圆刚好盖满整屏，从任意点击点出发都成立。 */
+    const R = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) + 2
+    ripple.style.clipPath = `circle(${R}px at ${x}px ${y}px)`
+    /* 缩放原点 = 圆心，圆才会整体向点击点收拢而不是塌向元素中心 */
+    ripple.style.transformOrigin = `${x}px ${y}px`
     /* 底色：计算值里 transparent 的页面不该让遮罩透明（中间态会漏出来），
        此时按当前主题退回写死的两个底色。 */
     if (oldColor && oldColor !== 'rgba(0, 0, 0, 0)' && oldColor !== 'transparent') {
@@ -166,17 +174,21 @@ export const ThemeToggle = () => {
       ripple.style.backgroundColor = wasDark ? '#0f0f16' : '#eaeff5'
     }
     if (oldImage && oldImage !== 'none') {
-      /* 背景图连同尺寸/定位/附着参数一起搬过来，遮罩就不只是纯色块，
-         而是和旧页面背景逐像素一致。 */
+      /* 背景图连同尺寸/定位参数一起搬过来，遮罩就不只是纯色块，
+         而是和旧页面背景逐像素一致。
+         附着参数强制 scroll：fixed 的背景不随元素变换缩放（规范层面
+         固定在视口），元素一被 scale 背景就会「钉住」不动，圆是缩了、
+         内容却没缩，视觉上是割裂的。scroll 下本元素盒子恰等于视口，
+         渲染结果与页面的 fixed 完全一致，且会跟着一起缩。 */
       ripple.style.backgroundImage = oldImage
       ripple.style.backgroundSize = cs.backgroundSize
       ripple.style.backgroundRepeat = cs.backgroundRepeat
       ripple.style.backgroundPosition = cs.backgroundPosition
-      ripple.style.backgroundAttachment = cs.backgroundAttachment
+      ripple.style.backgroundAttachment = 'scroll'
     }
     document.body.appendChild(ripple)
     rippleRef.current = ripple
-    void ripple.offsetWidth /* 强制布局：让「整屏圆」成为过渡起点 */
+    void ripple.offsetWidth /* 强制布局：让 scale(1) 成为过渡起点 */
 
     applyTheme(next)
 
