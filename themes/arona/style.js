@@ -596,22 +596,32 @@ const Style = () => {
        遮罩由 ThemeToggle.js 在点击时动态插入 <body>：
          .arona-theme-ripple                铺满全屏，静态 clip-path 画圆
          .arona-theme-ripple-shrink         transform 收缩到点击点（过渡态）
+         html.arona-theme-ripple-active     揭幕进行中（压制页面自身过渡）
 
-       完整时序（同一个 JS 任务内同步完成，浏览器只画一帧）：
+       完整时序（铺遮罩 + 换主题在同一个 JS 任务内完成，浏览器只画一帧；
+       收缩晚两帧启动，让换肤那帧先画完）：
          1. 插入遮罩，底色/背景图复制 #theme-arona **计算后**的背景 ——
             首帧与旧页面逐像素一致（注意不能读 --general-background-color：
             themeConsoleStyle 在样式表尾部盖住了根元素底色，线上真正的
             底色是调色板 BG 令牌，浅 #fff / 深 #000）；
          2. clip-path 半径取「点击点到最远视口角的距离」，scale(1) 时正好盖满；
          3. void offsetWidth 强制布局，把初始状态提交为过渡起点；
-         4. 在遮罩底下换 <html> 的 dark/light 类；
-         5. 加 -shrink 类，transform: scale(1) → scale(0)，圆随缩放向点击点收拢，
-            新主题被一圈圈揭开；transitionend（+900ms 兜底）后移除遮罩。
+         4. 挂 arona-theme-ripple-active，在遮罩底下换 <html> 的 dark/light 类；
+         5. 晚两帧加 -shrink：transform: scale(1) → scale(0)，圆随缩放向点击点
+            收拢，新主题被一圈圈揭开；transitionend（+900ms 兜底）后移除遮罩。
 
        为什么用 transform 而不是动画 clip-path：clip-path 过渡不走合成器，
-       每帧在主线程重绘整屏背景图，实测只有 ~43fps 且带 90ms 卡顿；
-       transform: scale() 由合成器执行，背景只画一次，稳定 60fps。
+       每帧在主线程重绘整屏背景图。同环境 A/B（唯一变量为动画技术）实测：
+       旧版遮罩窗口仅 12~16 帧、avg 38~49ms（21~26fps）、5~7 帧 >50ms
+       卡顿贯穿全程；新版 26~31 帧、avg 19~23ms（44~54fps）、只剩换主题
+       1 帧一次性重绘。transform: scale() 由合成器执行、背景只画一次。
        静态 clip-path 不参与动画，不会把元素拉回主线程。
+
+       为什么要晚两帧 + 压制页面过渡：换主题要重排重绘整页（根元素自身
+       还有 500ms 背景过渡、深浅背景是不同的 SVG），主线程一忙几百毫秒。
+       同一任务里就收缩的话，过渡时钟在阻塞期间照走，线程恢复时动画已跳掉
+       大半（线上实测 949ms 生命周期、只采到 7 帧）；arona-theme-ripple-active
+       把根元素过渡和 anim 卡片过渡都关掉，换肤压成一帧，收缩跑在空闲主线程上。
        ================================================================== */
     .arona-theme-ripple {
       position: fixed;
@@ -626,6 +636,12 @@ const Style = () => {
     }
     .arona-theme-ripple-shrink {
       transform: scale(0);
+    }
+    /* 揭幕进行中：遮罩盖着整页，根元素自身的背景/颜色过渡（见上方
+       #theme-arona 的 transition）只剩重绘成本，还会把 transitionend
+       推迟到兜底定时器才撤遮罩。一律关掉，让换主题只画一帧。 */
+    html.arona-theme-ripple-active #theme-arona {
+      transition: none;
     }
     /* 减少动画时 JS 根本不会插入遮罩；这条是纯 CSS 路径（如将来有别的
        入口直接操作类）的双保险，让过渡即时完成。 */
