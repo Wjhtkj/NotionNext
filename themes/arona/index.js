@@ -22,6 +22,7 @@ import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { PostLock } from './components/PostLock'
 import ReadingProgress from './components/ReadingProgress'
+import ScrollReveal from './components/ScrollReveal'
 import SearchInput from './components/SearchInput'
 import { SideBar } from './components/SideBar'
 import SpinePlayer from './components/SpinePlayer'
@@ -45,6 +46,7 @@ const LayoutBase = props => {
   const SHOW_SPINE = siteConfig('ARONA_SPINE_ENABLE', true, CONFIG)
   const SHOW_PROGRESS = siteConfig('ARONA_READING_PROGRESS', true, CONFIG)
   const SHOW_TOTOP = siteConfig('ARONA_BACK_TO_TOP', true, CONFIG)
+  const SHOW_REVEAL = siteConfig('ARONA_SCROLL_REVEAL', true, CONFIG)
 
   // 将 NotionNext 的深色状态同步到 <html> 的 class 与 theme 属性（供 CSS 变量切换）
   useEffect(() => {
@@ -79,6 +81,8 @@ const LayoutBase = props => {
       {SHOW_FIREWORKS && <ClickFireworks />}
       {/* 阅读进度条 */}
       {SHOW_PROGRESS && <ReadingProgress />}
+      {/* 滚动进场 + 卡片鼠标高光 */}
+      {SHOW_REVEAL && <ScrollReveal />}
       {/* Spine 看板娘 */}
       {SHOW_SPINE && <SpinePlayer />}
 

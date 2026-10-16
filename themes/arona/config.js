@@ -72,6 +72,8 @@ const CONFIG = {
   ARONA_FIREWORKS: true,
   ARONA_BACK_TO_TOP: true,
   ARONA_AUTO_COLLAPSE: false,
+  // 滚动进场 + 卡片鼠标跟随高光（components/ScrollReveal.js）
+  ARONA_SCROLL_REVEAL: true,
 
   // ===== Spine 看板娘 =====
   ARONA_SPINE_ENABLE: true,

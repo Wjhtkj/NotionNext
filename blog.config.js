@@ -19,6 +19,10 @@ const BLOG = {
   AUTHOR: process.env.NEXT_PUBLIC_AUTHOR || 'Endless647', // 您的昵称 例如 tangly1024
   // 站点标题；配置后优先于 Notion 数据库的名称（即模板自带的"Notion 博客"）
   TITLE: process.env.NEXT_PUBLIC_TITLE || 'Endless647',
+  // 站点简介；配置后优先于 Notion 数据库的 description。
+  // 不配这项时会被 Notion 数据库里那句「一个NotionNext搭建的博客」一直盖住，
+  // 改文案只能进 Notion 后台，工程里改不动（见 lib/db/SiteDataApi.js 的覆盖逻辑）。
+  DESCRIPTION: process.env.NEXT_PUBLIC_DESCRIPTION || '记录折腾与分享',
   BIO: process.env.NEXT_PUBLIC_BIO || '一个普通的干饭人🍚', // 作者简介
   LINK: process.env.NEXT_PUBLIC_LINK || 'https://wjhtkjwz.eu.org', // 网站地址
   KEYWORDS:

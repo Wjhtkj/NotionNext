@@ -754,6 +754,119 @@ const Style = () => {
     }
 
     /* ==================================================================
+       滚动进场 + 卡片鼠标高光（ScrollReveal.js）
+       ------------------------------------------------------------------
+       初始隐藏态挂在 html.arona-reveal-on 下，而那个类是由 JS 加上的。
+       这样 JS 一旦没跑（禁用脚本/报错），内容就是正常可见的 ——
+       不会把整站变成空白页。这是所有「进场动画」都必须守住的底线。
+
+       为什么用 animation 而不是 transition：
+       进场播完后，transition 的 delay（--arona-reveal-delay）会一直留在
+       元素上，之后每一次 hover 位移都要先等那几百毫秒延迟，卡片会「发木」。
+       改用 animation + fill-mode: backwards 就没这个问题 ——
+       动画播完即失效，hover 过渡回到 .arona-post-card 自己那条，
+       延迟变量留在那儿也无害。
+       ================================================================== */
+    .arona-reveal-on .arona-post-card,
+    .arona-reveal-on .arona-sidebar .arona-side-card,
+    .arona-reveal-on .arona-tag-cloud .arona-cloud-item,
+    .arona-reveal-on .arona-list-heading,
+    .arona-reveal-on .arona-view-box {
+      opacity: 0;
+    }
+    .arona-reveal-on .arona-post-card.arona-revealed,
+    .arona-reveal-on .arona-sidebar .arona-side-card.arona-revealed,
+    .arona-reveal-on .arona-tag-cloud .arona-cloud-item.arona-revealed,
+    .arona-reveal-on .arona-list-heading.arona-revealed,
+    .arona-reveal-on .arona-view-box.arona-revealed {
+      opacity: 1;
+      /* 位移刻意小（16px）：幅度大了在长列表里会显得元素在「跳」。 */
+      animation: arona-reveal-up 0.7s cubic-bezier(0.22, 0.68, 0, 1) var(--arona-reveal-delay, 0ms) backwards;
+    }
+    @keyframes arona-reveal-up {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 鼠标跟随高光：指针坐标由 JS 写进 --mx / --my（百分比）。
+       默认 50% 50% + opacity 0，所以没鼠标的设备上什么都不显示。 */
+    .arona-post-card::after,
+    .arona-sidebar .arona-side-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      /* 半径 260px 约等于一张卡片的三分之一宽，跟着指针走时
+         边缘刚好淡出，不会在卡片中央留下一个硬邦邦的圆。 */
+      background: radial-gradient(
+        260px circle at var(--mx, 50%) var(--my, 50%),
+        rgba(255, 255, 255, 0.16),
+        transparent 70%
+      );
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 1;
+    }
+    .arona-post-card:hover::after,
+    .arona-sidebar .arona-side-card:hover::after { opacity: 1; }
+    /* 深色模式下白光糊脸，换成冷蓝高光，和整体色板一致 */
+    html.dark .arona-post-card::after,
+    html.dark .arona-sidebar .arona-side-card::after {
+      background: radial-gradient(
+        260px circle at var(--mx, 50%) var(--my, 50%),
+        rgba(147, 197, 253, 0.14),
+        transparent 70%
+      );
+    }
+    /* 卡片内容要压在高光之上，否则文字会被一层白纱盖住 */
+    .arona-post-card > *,
+    .arona-sidebar .arona-side-card > * { position: relative; z-index: 2; }
+
+    /* 文章卡片：左侧竖条 hover 时点亮，浮升幅度从 2px 加到 4px。
+       原来竖条是纯静态的，卡片浮起来时它毫无反应，像贴错了边。
+       注意这条要写在桌面端原有的 transition: all 0.5s 之后才能覆盖它。 */
+    .arona-post-card {
+      transition:
+        transform 0.5s cubic-bezier(0.22, 0.68, 0, 1),
+        box-shadow 0.5s ease,
+        border-color 0.5s ease;
+    }
+    .arona-post-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 22px rgba(var(--blue-shadow-color), 0.45);
+      border-left-color: var(--color-blue);
+    }
+
+    /* 标签云：hover 抬升 + 轻微放大。原来只有背景色变化，反馈太弱 */
+    .arona-tag-cloud .arona-cloud-item {
+      transition:
+        transform 0.35s cubic-bezier(0.22, 0.68, 0, 1),
+        box-shadow 0.35s ease,
+        background-color 0.3s ease;
+    }
+    .arona-tag-cloud .arona-cloud-item:hover {
+      transform: translateY(-3px) scale(1.04);
+      box-shadow: 0 4px 14px rgba(var(--blue-shadow-color), 0.35);
+    }
+
+    /* 尊重系统「减少动画」设置：位移和高光都撤掉，只留淡入。 */
+    @media (prefers-reduced-motion: reduce) {
+      .arona-reveal-on .arona-post-card,
+      .arona-reveal-on .arona-sidebar .arona-side-card,
+      .arona-reveal-on .arona-tag-cloud .arona-cloud-item,
+      .arona-reveal-on .arona-list-heading,
+      .arona-reveal-on .arona-view-box {
+        opacity: 1;
+        animation: none;
+      }
+      .arona-post-card::after,
+      .arona-sidebar .arona-side-card::after { display: none; }
+      .arona-post-card:hover,
+      .arona-tag-cloud .arona-cloud-item:hover { transform: none; }
+    }
+
+    /* ==================================================================
        Banner 横幅 (Banner.astro)
        ================================================================== */
     .arona-banner {
@@ -1193,6 +1306,36 @@ const Style = () => {
     .arona-totop img { width: 85px; height: auto; pointer-events: none; display: block; }
     .arona-totop.hidden { bottom: -25%; right: -25%; opacity: 0; }
     @media (max-width: 768px) { .arona-totop { right: 5%; } .arona-totop img { width: 8vh; } }
+
+    /* 进度环：套在图标外面的一圈描边圆环。
+       stroke-dashoffset 由 BackToTop.js 按滚动进度改，
+       这里只负责「画成什么样」。rotate(-90deg) 让进度从顶点起算，
+       否则 SVG 圆是从 3 点钟方向开始的，看着像随机从侧面冒出来。 */
+    .arona-totop-ring { position: relative; display: block; line-height: 0; }
+    .arona-totop-ring svg {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      transform: rotate(-90deg);
+      overflow: visible;
+    }
+    .arona-totop-ring circle {
+      fill: none;
+      stroke-linecap: round;
+      /* 线宽按 viewBox 100 的比例给，图标缩放时环跟着一起缩 */
+      stroke-width: 6;
+    }
+    .arona-totop-ring .ring-track { stroke: rgba(var(--blue-shadow-color), 0.22); }
+    .arona-totop-ring .ring-bar {
+      stroke: var(--color-blue);
+      /* 进度环本身也要有过渡，否则快速滚动时它一格格跳 */
+      transition: stroke-dashoffset 0.15s linear;
+      filter: drop-shadow(0 0 4px rgba(var(--blue-shadow-color), 0.7));
+    }
+    html.dark .arona-totop-ring .ring-bar { stroke: #9ec5fd; }
+    /* hover 时图标轻微放大，配合 ring 一起给反馈 */
+    .arona-totop:hover .arona-totop-ring { transform: scale(1.06); }
+    .arona-totop-ring { transition: transform 0.35s cubic-bezier(0.22, 0.68, 0, 1); }
 
     /* ==================================================================
        Splash 开屏 (Splash.astro)
@@ -1686,6 +1829,8 @@ const Style = () => {
        侧边栏（NotionNext 自带，做 Arona 化）
        ================================================================== */
     .arona-sidebar .arona-side-card {
+      /* relative 是给 ::after 鼠标高光当定位上下文用的 */
+      position: relative;
       background-color: var(--foreground-color);
       border-radius: 24px;
       border: 2px solid var(--foreground-color);
