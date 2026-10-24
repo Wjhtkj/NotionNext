@@ -140,11 +140,20 @@ export const Banner = props => {
         nxt.style.backgroundImage = `url("${url}")`
         void nxt.offsetHeight
         nxt.classList.add('transitioning-in')
+        /* 淡入时长必须和 CSS 里 .bg-layer 的 opacity 过渡一致，
+           否则会在「淡完了但还没换图」之间留一段静止。
+           时长取自同一个动效 token（--arona-dur-slow），
+           以后调 token 时这里自动跟着变，不会漂。 */
+        const fadeMs =
+          parseInt(
+            getComputedStyle(cur).getPropertyValue('--arona-dur-slow'),
+            10
+          ) || 420
         setTimeout(() => {
           cur.style.backgroundImage = `url("${url}")`
           currentUrlRef.current = url
           nxt.classList.remove('transitioning-in')
-        }, 500)
+        }, fadeMs)
       }
       img.onerror = () => {
         cur.style.backgroundImage = `url("${url}")`

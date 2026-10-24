@@ -69,7 +69,10 @@ export const BackToTop = () => {
       aria-label='回到顶部'
       onClick={e => {
         e.preventDefault()
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        /* 平滑滚动也是一种「动态效果」：系统要求减少动画时直接跳。
+           滚一整页的 smooth 对前庭敏感人群很不友好。 */
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
       }}>
       <span className='arona-totop-ring'>
         <svg viewBox='0 0 100 100' aria-hidden='true' focusable='false'>

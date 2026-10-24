@@ -94,15 +94,23 @@ const LayoutBase = props => {
 
       {/* 主体 */}
       <main className='arona-main'>
+        {/* 主体进场。
+            原来 enter 是 duration-700 + translate-y-16（64px）：
+            ① 700ms 比卡片自身的进场（420ms）还慢，两者叠在一起时
+               卡片先落定、整块内容还在往上飘，看着像没对齐；
+            ② 64px 的位移在长页面上会让首屏文字整体「从下面顶上来」，
+               阅读位置跟着动，比短位移更晕。
+            收敛成 500ms / 32px，与卡片进场同步收尾。
+            leave 用更短的 200ms：离场不需要仪式感，越快越好。 */}
         <Transition
           show={!onLoading}
           appear={true}
-          enter='transition ease-in-out duration-700 transform'
-          enterFrom='opacity-0 translate-y-16'
+          enter='transition ease-out duration-500 transform'
+          enterFrom='opacity-0 translate-y-8'
           enterTo='opacity-100'
-          leave='transition ease-in-out duration-300 transform'
+          leave='transition ease-in duration-200 transform'
           leaveFrom='opacity-100 translate-y-0'
-          leaveTo='opacity-0 -translate-y-16'
+          leaveTo='opacity-0 -translate-y-8'
           unmount={false}>
           {props.slotTop}
           {children}

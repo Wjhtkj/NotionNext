@@ -20,7 +20,10 @@ const ReadingProgress = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop
       const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight
       const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0
-      fill.style.width = progress + '%'
+      // 用 scaleX 而不是 width：width 是布局属性，滚动时每帧都要重排一次
+      // 顶部那条 3px 的进度条；scaleX 是纯合成变换，不碰布局。
+      // 元素本身宽 100%，transform-origin 在左边，视觉上等价。
+      fill.style.transform = `scaleX(${progress / 100})`
       if (scrollTop > 100) bar.classList.add('visible')
       else bar.classList.remove('visible')
     }

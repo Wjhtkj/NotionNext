@@ -36,38 +36,73 @@ export const WelcomeBox = () => {
     const info = infoRef.current
     if (!box || !info) return
     const MULTIPLE = 30
+    /* 渐变角度不用每帧都改。
+       .arona-info-box 上有 backdrop-filter，改它自己的背景会让这块
+       半透明玻璃每帧重新合成一次背后的模糊 —— 60fps 下这是本页最贵的
+       一段绘制。角度本身变化很慢（鼠标平移几十像素才差几度），
+       压到 ~10fps 肉眼几乎看不出，绘制次数少 6 倍。 */
+    const GRADIENT_INTERVAL = 100
+    let lastGradient = 0
+    let rect = null
+    let ticking = false
+    let lastEvent = null
+
     const getAngle = (x, y) => {
       const r = Math.atan2(y, x)
       let a = r * (180 / Math.PI)
       if (a < 0) a += 360
       return a
     }
-    const parallax = e => {
-      window.requestAnimationFrame(() => {
-        const rect = box.getBoundingClientRect()
-        const calcY = (e.clientX - rect.x - rect.width / 2) / MULTIPLE
-        const calcX = -(e.clientY - rect.y - rect.height / 2) / MULTIPLE
-        const angle = Math.floor(
-          getAngle(e.clientY - rect.y - rect.height / 2, e.clientX - rect.x - rect.width / 2)
-        )
-        box.style.transform = `rotateY(${calcY}deg) rotateX(${calcX}deg)`
-        info.style.background = `linear-gradient(${angle}deg, var(--infobox-background-initial), var(--infobox-background-final))`
-      })
+
+    /* 原来每个 pointermove 都直接 getBoundingClientRect()：这是同步布局读，
+       鼠标划过时每帧强制一次样式计算。改成缓存，只在 resize/scroll 后失效。 */
+    const measure = () => {
+      rect = box.getBoundingClientRect()
     }
+    measure()
+
+    const frame = () => {
+      ticking = false
+      const e = lastEvent
+      if (!e || !rect) return
+      const dx = e.clientX - rect.x - rect.width / 2
+      const dy = e.clientY - rect.y - rect.height / 2
+      // 倾斜用 transform，纯合成，不重绘
+      box.style.transform = `rotateY(${dx / MULTIPLE}deg) rotateX(${-dy / MULTIPLE}deg)`
+      const now = performance.now()
+      if (now - lastGradient >= GRADIENT_INTERVAL) {
+        lastGradient = now
+        info.style.background = `linear-gradient(${Math.floor(getAngle(dy, dx))}deg, var(--infobox-background-initial), var(--infobox-background-final))`
+      }
+    }
+
+    const parallax = e => {
+      lastEvent = e
+      // 一帧只排一次，避免快速移动时把 rAF 队列塞满
+      if (!ticking) {
+        ticking = true
+        window.requestAnimationFrame(frame)
+      }
+    }
+
     const reset = () => {
+      lastEvent = null
       box.style.transform = 'rotateY(0deg) rotateX(0deg)'
       info.style.background =
         'linear-gradient(0deg, var(--infobox-background-initial), var(--infobox-background-final))'
     }
+
+    /* 只挂 pointer* 系列：鼠标、触控笔、手指都能触发，
+       原来同时挂 mousemove 会让鼠标设备上每次移动跑两遍。 */
     box.addEventListener('pointermove', parallax)
-    box.addEventListener('mousemove', parallax)
     box.addEventListener('pointerleave', reset)
-    box.addEventListener('mouseleave', reset)
+    window.addEventListener('resize', measure, { passive: true })
+    window.addEventListener('scroll', measure, { passive: true })
     return () => {
       box.removeEventListener('pointermove', parallax)
-      box.removeEventListener('mousemove', parallax)
       box.removeEventListener('pointerleave', reset)
-      box.removeEventListener('mouseleave', reset)
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure)
     }
   }, [])
 

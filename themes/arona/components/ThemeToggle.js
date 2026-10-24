@@ -127,9 +127,11 @@ export const ThemeToggle = () => {
     setDark(next)
     window.dispatchEvent(new CustomEvent('arona-theme-change', { detail: { dark: next } }))
 
-    /* 颜色过渡：给 <html> 挂一个短命类，让页面底色平滑变色，
-       400ms 后摘掉。快速连点时重置计时器，避免类被过早摘掉。
-       这条路径只给「不支持 View Transitions 的浏览器」用。 */
+    /* 颜色过渡：给 <html> 挂一个短命类，让页面底色平滑变色。
+       这条路径只给「不支持 View Transitions 的浏览器」用。
+       摘类的时刻必须**晚于** CSS 里的过渡时长（--arona-dur-slow = 420ms），
+       否则过渡跑到一半类就没了，最后几帧会硬跳到终值。取 460ms 留一点余量。
+       快速连点时重置计时器，避免类被过早摘掉。 */
     if (animTimer.current) {
       clearTimeout(animTimer.current)
       animTimer.current = null
@@ -139,7 +141,7 @@ export const ThemeToggle = () => {
       animTimer.current = setTimeout(() => {
         root.classList.remove('arona-theme-anim')
         animTimer.current = null
-      }, 400)
+      }, 460)
     } else {
       root.classList.remove('arona-theme-anim')
     }

@@ -6,7 +6,15 @@ import { useEffect, useRef } from 'react'
  * 开屏加载动画（复刻 Endless647 Splash.astro）
  * 三角形矩阵 + 中央 LED 圆圈呼吸，随机 1.2~1.5s 后淡出
  * 每次会话只播放一次（sessionStorage）。
+ *
+ * 只在「首屏没有 SSR 内容」时播放：模块顶层求值时 #theme-arona 已经在 DOM 里，
+ * 说明 HTML 里就是完整页面，开屏盖上去只是把用户已经看到的内容藏起来
+ * （慢网下 JS 要 5~7 秒才到，等于白盖 5 秒）。所以样式里 .arona-splash
+ * 默认 display:none，由本组件在需要时挂 .arona-splash-on 打开。
  */
+const SSR_RENDERED =
+  typeof window !== 'undefined' && !!document.getElementById('theme-arona')
+
 const TRIANGLES = [
   'M606 -123L1061 666H151L606 -123Z',
   'M190.15 144L67.3 -68.94L313 -68.94L190.15 144Z',
@@ -30,11 +38,13 @@ const TRIANGLES = [
 
 const Splash = () => {
   const ref = useRef(null)
-  const breathRef = useRef(null)
 
   useEffect(() => {
     const splash = ref.current
     if (!splash) return
+
+    /* 服务端已渲染：内容早就在屏幕上了，直接保持隐藏 */
+    if (SSR_RENDERED) return
 
     // 一次会话只播放一次
     try {
@@ -47,7 +57,15 @@ const Splash = () => {
       /* ignore */
     }
 
-    let rafId = null
+    /* 到得太晚也别播了：页面已经在屏幕上放了一会儿，这时再弹一层开屏
+       只是把内容盖住 1.7 秒，反而更慢。 */
+    if (typeof performance !== 'undefined' && performance.now() > 2500) {
+      splash.style.display = 'none'
+      return
+    }
+
+    splash.classList.add('arona-splash-on')
+
     let fadeTimer = null
 
     document.documentElement.classList.add('arona-splash-loading')
@@ -58,23 +76,12 @@ const Splash = () => {
     window.addEventListener('wheel', preventScroll, { passive: false })
     window.addEventListener('touchmove', preventScroll, { passive: false })
 
-    // 呼吸
-    let opacity = 0.3
-    let direction = 1
-    const breathe = () => {
-      const parts = breathRef.current
-      if (!parts) return
-      opacity += 0.01 * direction
-      if (opacity >= 1) direction = -1
-      if (opacity <= 0.3) direction = 1
-      parts.style.opacity = opacity
-      rafId = requestAnimationFrame(breathe)
-    }
-    breathe()
+    // 呼吸动画交给 CSS（见 style.js 的 .breath-group），这里不再跑 rAF 循环。
 
     const fadeOut = () => {
+      // 过渡已在 CSS 里声明（.arona-splash 的 transition: opacity），
+      // 这里只改目标值即可，不必再内联写一遍 transition。
       splash.style.opacity = '0'
-      splash.style.transition = 'opacity 500ms ease-in-out'
       fadeTimer = setTimeout(() => {
         splash.style.display = 'none'
         document.documentElement.classList.remove('arona-splash-loading')
@@ -93,7 +100,6 @@ const Splash = () => {
     return () => {
       clearTimeout(showTimer)
       clearTimeout(fadeTimer)
-      if (rafId) cancelAnimationFrame(rafId)
       window.removeEventListener('wheel', preventScroll)
       window.removeEventListener('touchmove', preventScroll)
     }
@@ -108,7 +114,7 @@ const Splash = () => {
               <path key={i} d={d} />
             ))}
           </g>
-          <g ref={breathRef}>
+          <g className='breath-group'>
             <path
               className='circle-path'
               fillRule='evenodd'

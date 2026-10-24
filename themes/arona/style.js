@@ -38,8 +38,34 @@ const Style = () => {
        颜色变量 —— 浅色 (vars.less :root)
        ================================================================== */
     #theme-arona {
-      --transition-time: 0.3s;
-      --transition-curve: cubic-bezier(0.4, 0, 0.2, 1);
+      /* ==================================================================
+         动效 token
+         ------------------------------------------------------------------
+         改之前全站散着 0.1s / 0.15s / 0.2s / 0.25s / 0.28s / 0.3s / 0.35s
+         / 0.4s / 0.5s / 0.6s / 0.8s 共 11 种时长、6 种缓动写法，导致同一类
+         交互在不同组件里手感不一致（比如「卡片浮升」在列表页是 0.5s、
+         在标签云是 0.35s、在搜索结果是 0.5s all）。
+         这里收敛成 3 档时长 + 3 条曲线，所有 transition / animation 引用变量：
+
+           fast   160ms  颜色、描边这类「按下就要有反应」的微反馈
+           base   260ms  悬停、展开、图标切换这类常规状态变化
+           slow   420ms  卡片浮升、主题换肤这类有实体感的位移/大面积变色
+
+           out    进场与位移：前快后慢，收尾干净
+           inout  双向状态切换（展开 ↔ 收起）
+           spring 需要「弹一下」的强调（开关、按钮按下）
+
+         --transition-time / --transition-curve 保留为 base 档的别名，
+         避免其他主题或组件里已有的引用断掉。
+         ================================================================== */
+      --arona-dur-fast: 160ms;
+      --arona-dur-base: 260ms;
+      --arona-dur-slow: 420ms;
+      --arona-ease-out: cubic-bezier(0.22, 0.68, 0, 1);
+      --arona-ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+      --arona-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+      --transition-time: var(--arona-dur-base);
+      --transition-curve: var(--arona-ease-inout);
 
       --theme-background-image: url('/arona/background.svg');
 
@@ -168,7 +194,12 @@ const Style = () => {
       /* 用 clip 而不是 hidden：hidden 会创建滚动容器，导致内部 sticky 导航失效 */
       overflow-x: clip;
       color: var(--font-color-grey);
-      transition: background-image 0.5s, background-color 0.5s, color 0.5s;
+      /* background-image 是 url()，本来就不参与插值，列在 transition 里
+         除了让浏览器每帧多做一次属性比对没有任何作用，删掉。
+         只留真正会变的底色与文字色。 */
+      transition:
+        background-color var(--arona-dur-slow) var(--arona-ease-inout),
+        color var(--arona-dur-slow) var(--arona-ease-inout);
       font-size: 20px;
       font-weight: 500;
       line-height: 1.7;
@@ -192,7 +223,14 @@ const Style = () => {
       color: white;
       padding: 0.5rem 1rem;
       border-radius: 6px;
-      transition: all var(--transition-time) var(--transition-curve);
+      /* 原来是 transition: all —— 按钮上会变的东西就这几样，
+         写全了比 all 快：浏览器不必对 padding/font-size 之类的继承属性
+         也逐帧做 diff，也不会误伤将来加进来的布局属性。 */
+      transition:
+        background-color var(--arona-dur-fast) var(--arona-ease-inout),
+        color var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        box-shadow var(--arona-dur-base) var(--arona-ease-out);
     }
     :where(#theme-arona) button:hover { background: var(--btn-hover); transform: translateY(-1px); }
 
@@ -378,7 +416,14 @@ const Style = () => {
       font-weight: bold;
       color: var(--font-color-grey);
       text-decoration: none;
-      transition: all 0.5s, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+      /* 原来是 all 0.5s + transform 0.8s —— 两处问题：
+         ① all 把 padding / font-size 也算进去；
+         ② 位移用了 0.8s，比同页任何其他 hover 都慢一倍多，
+            鼠标扫过一排菜单时会「追手」。统一到 base 档。 */
+      transition:
+        color var(--arona-dur-base) var(--arona-ease-inout),
+        background-color var(--arona-dur-base) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out);
     }
     .arona-header .menu li a:hover {
       color: var(--font-color-gold);
@@ -392,7 +437,7 @@ const Style = () => {
     .arona-header .menu li.has-sub > a { display: flex; align-items: center; gap: 6px; }
     .arona-header .menu li.has-sub > a .sub-arrow {
       font-size: 12px;
-      transition: transform 0.3s var(--transition-curve);
+      transition: transform var(--arona-dur-base) var(--arona-ease-inout);
     }
     .arona-header .menu li.has-sub:hover > a .sub-arrow { transform: rotate(90deg); }
     .arona-header .menu li.has-sub > .sub-menu {
@@ -413,7 +458,7 @@ const Style = () => {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transition: opacity 0.25s var(--transition-curve), transform 0.25s var(--transition-curve), visibility 0.25s;
+      transition: opacity var(--arona-dur-fast) var(--arona-ease-inout), transform var(--arona-dur-base) var(--arona-ease-out), visibility var(--arona-dur-fast);
       z-index: 130;
     }
     .arona-header .menu li.has-sub:hover > .sub-menu,
@@ -473,7 +518,10 @@ const Style = () => {
       border-radius: 4px;
       background-color: var(--font-color-grey);
       margin-bottom: 4px;
-      transition: all 0.3s ease-in-out;
+      /* 只做位移/旋转/淡出，全是合成属性 */
+      transition:
+        transform var(--arona-dur-base) var(--arona-ease-inout),
+        opacity var(--arona-dur-fast) var(--arona-ease-inout);
     }
     .arona-header .hamburger.active .line:nth-child(1) { transform: translateY(8px) rotate(45deg); }
     .arona-header .hamburger.active .line:nth-child(2) { opacity: 0; }
@@ -513,9 +561,9 @@ const Style = () => {
       cursor: pointer;
       outline: none;
       transition:
-        background-color 0.3s ease,
-        color 0.3s ease,
-        transform 0.3s ease;
+        background-color var(--arona-dur-fast) var(--arona-ease-inout),
+        color var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out);
     }
     .arona-header .theme-toggle:hover {
       background-color: rgba(var(--blue-shadow-color), 0.18);
@@ -528,8 +576,8 @@ const Style = () => {
       width: 18px;
       height: 18px;
       transition:
-        opacity 0.35s ease,
-        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        opacity var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-spring);
     }
     /* 默认（<html> 类还没就位的那一两帧）显示月亮 —— 与 blog.config 里
        APPEARANCE 的默认值一致，避免亮/暗图标闪一下。 */
@@ -558,36 +606,37 @@ const Style = () => {
     }
 
     /* 主题切换时的颜色过渡：点击时给 <html> 挂一个短命的 .arona-theme-anim，
-       400ms 后由 JS 摘掉。只过渡 background-color / border-color / color，
-       不碰 background 简写 —— 简写会把背景图一起重置掉。 */
+       过渡跑完后由 JS 摘掉。只过渡 background-color / border-color / color，
+       不碰 background 简写 —— 简写会把背景图一起重置掉。
+       时长统一到 slow 档（420ms），与圆形揭幕的 0.6s 处在同一个节奏上：
+       原来这里 0.35s、卡片 0.5s、侧栏 0.4s，揭幕到不同元素时颜色快慢不一，
+       圆边扫过去能看到「这张卡先变、那张后变」的错位。 */
     html.arona-theme-anim #theme-arona,
     html.arona-theme-anim .arona-header nav {
       transition:
-        background-color 0.35s ease,
-        border-color 0.35s ease,
-        color 0.35s ease;
+        background-color var(--arona-dur-slow) var(--arona-ease-inout),
+        border-color var(--arona-dur-slow) var(--arona-ease-inout),
+        color var(--arona-dur-slow) var(--arona-ease-inout);
     }
     /* 卡片类表面也要跟着变色，否则圆形揭幕 revealing 到它们时颜色是硬跳的。
        做法上的取舍：不新建 transition 列表，而是**沿用各表面自己的
        transition 时长/曲线**，只在末尾追加 background-color ——
-       这样 hover 浮升（transform/box-shadow）的手感与平时完全一致，
-       不会出现「切换主题的 400ms 内 hover 变成硬跳」的副作用。
+       这样 hover 浮升（transform）的手感与平时完全一致，
+       不会出现「切换主题的几百毫秒内 hover 变成硬跳」的副作用。
        类摘掉后各表面回到自己的规则，无残留。 */
     html.arona-theme-anim .arona-post-card {
       transition:
-        transform 0.5s cubic-bezier(0.22, 0.68, 0, 1),
-        box-shadow 0.5s ease,
-        border-color 0.5s ease,
-        background-color 0.5s ease;
+        transform var(--arona-dur-slow) var(--arona-ease-out),
+        border-left-color var(--arona-dur-slow) var(--arona-ease-inout),
+        background-color var(--arona-dur-slow) var(--arona-ease-inout);
     }
     html.arona-theme-anim .arona-sidebar .arona-side-card,
     html.arona-theme-anim .arona-footer,
     html.arona-theme-anim .arona-dropdown .menu-content {
       transition:
-        background-color 0.4s ease,
-        border-color 0.4s ease,
-        box-shadow 0.4s ease,
-        color 0.4s ease;
+        background-color var(--arona-dur-slow) var(--arona-ease-inout),
+        border-color var(--arona-dur-slow) var(--arona-ease-inout),
+        color var(--arona-dur-slow) var(--arona-ease-inout);
     }
 
     /* ==================================================================
@@ -623,6 +672,10 @@ const Style = () => {
       mix-blend-mode: normal;
     }
     html.arona-theme-switching::view-transition-new(root) {
+      /* 这里不能用 var(--arona-ease-inout)：::view-transition-* 是挂在
+         文档根下的过渡伪元素，不是 #theme-arona 的后代，继承不到那边的
+         自定义属性，var() 会失效、曲线退回 ease。所以曲线要写死。
+         （--arona-reveal-x/y/r 能用，是因为 ThemeToggle 直接写在 <html> 上。） */
       animation: arona-theme-reveal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     @keyframes arona-theme-reveal {
@@ -653,7 +706,9 @@ const Style = () => {
       display: flex;
       justify-content: center;
       align-items: center;
-      transition: opacity 0.2s ease-in-out, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition:
+        opacity var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out);
     }
     .arona-dropdown .menu-content {
       position: relative;
@@ -710,7 +765,7 @@ const Style = () => {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      transition: transform var(--arona-dur-base) var(--arona-ease-out);
     }
     .arona-dropdown .first-row a.arona-tool:hover { transform: translateY(-3px); }
 
@@ -720,11 +775,15 @@ const Style = () => {
     .arona-switch .slider {
       position: absolute; cursor: pointer; inset: 0;
       background-color: rgba(var(--blue-shadow-color), 0.15);
-      transition: 0.3s; border-radius: 24px;
+      transition: background-color var(--arona-dur-base) var(--arona-ease-inout); border-radius: 24px;
     }
     .arona-switch .slider:before {
       position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px;
-      background-color: white; transition: 0.3s; border-radius: 50%;
+      background-color: white;
+      /* 滑块用 spring，按下去有点「咬合感」；原来是简写 transition: 0.3s，
+         等于 all 0.3s，连 box-shadow 也在逐帧插值 */
+      transition: transform var(--arona-dur-base) var(--arona-ease-spring);
+      border-radius: 50%;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
     .arona-switch input:checked + .slider { background-color: rgba(var(--blue-shadow-color), 0.6); }
@@ -787,7 +846,7 @@ const Style = () => {
         background: rgba(0, 0, 0, 0.55);
         -webkit-backdrop-filter: blur(2px);
         backdrop-filter: blur(2px);
-        animation: arona-fade-in 0.25s ease;
+        animation: arona-fade-in var(--arona-dur-base) var(--arona-ease-inout);
       }
 
       /* 抽屉本体。收起态用 visibility + opacity + pointer-events，
@@ -822,7 +881,13 @@ const Style = () => {
         visibility: hidden;
         opacity: 0;
         transform: translateY(-12px);
-        transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        /* 抽屉只做位移+淡入。visibility 必须带过渡，否则收起时面板会
+           立刻消失、看不到滑回去的过程（visibility 是离散属性，
+           在过渡结束时才翻转，正是我们想要的）。 */
+        transition:
+          opacity var(--arona-dur-base) var(--arona-ease-inout),
+          transform var(--arona-dur-base) var(--arona-ease-out),
+          visibility var(--arona-dur-base);
         pointer-events: none;
       }
       .arona-header.menu-drawer-open .menu {
@@ -904,7 +969,7 @@ const Style = () => {
       .arona-header .menu li.has-sub > a .sub-arrow {
         min-width: 12px;
         text-align: center;
-        transition: transform 0.25s ease;
+        transition: transform var(--arona-dur-base) var(--arona-ease-inout);
       }
       .arona-header .menu li.sub-expanded > a .sub-arrow { transform: rotate(90deg); }
       .arona-header .menu li.has-sub > .sub-menu li a {
@@ -948,8 +1013,10 @@ const Style = () => {
     .arona-reveal-on .arona-list-heading.arona-revealed,
     .arona-reveal-on .arona-view-box.arona-revealed {
       opacity: 1;
-      /* 位移刻意小（16px）：幅度大了在长列表里会显得元素在「跳」。 */
-      animation: arona-reveal-up 0.7s cubic-bezier(0.22, 0.68, 0, 1) var(--arona-reveal-delay, 0ms) backwards;
+      /* 位移刻意小（16px）：幅度大了在长列表里会显得元素在「跳」。
+         时长从 0.7s 收到 slow 档：0.7s 在「首屏 8 张卡片依次进场」时
+         最后一张要等 1 秒多才落定，读者会以为页面还在加载。 */
+      animation: arona-reveal-up var(--arona-dur-slow) var(--arona-ease-out) var(--arona-reveal-delay, 0ms) backwards;
     }
     @keyframes arona-reveal-up {
       from { opacity: 0; transform: translateY(16px); }
@@ -973,7 +1040,7 @@ const Style = () => {
         transparent 70%
       );
       opacity: 0;
-      transition: opacity 0.4s ease;
+      transition: opacity var(--arona-dur-base) var(--arona-ease-out);
       z-index: 1;
     }
     .arona-post-card:hover::after,
@@ -991,20 +1058,12 @@ const Style = () => {
     .arona-post-card > *,
     .arona-sidebar .arona-side-card > * { position: relative; z-index: 2; }
 
-    /* 文章卡片：左侧竖条 hover 时点亮，浮升幅度从 2px 加到 4px。
-       原来竖条是纯静态的，卡片浮起来时它毫无反应，像贴错了边。
-       注意这条要写在桌面端原有的 transition: all 0.5s 之后才能覆盖它。 */
-    .arona-post-card {
-      transition:
-        transform 0.5s cubic-bezier(0.22, 0.68, 0, 1),
-        box-shadow 0.5s ease,
-        border-color 0.5s ease;
-    }
-    .arona-post-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 6px 22px rgba(var(--blue-shadow-color), 0.45);
-      border-left-color: var(--color-blue);
-    }
+    /* 文章卡片的 hover 过渡统一写在下方 .arona-post-card 的定义处。
+       这里原来还有一份 transition: transform/box-shadow/border-color，
+       但注释里写的「要写在 transition: all 0.5s 之后才能覆盖」并不成立 ——
+       那份 all 0.5s 在文件更后面，同权重下后写的赢，所以这一段一直是死代码，
+       hover 实际走的是 all 0.5s（连 background-image 都在逐帧比对）。
+       已合并到唯一一处，避免两套规则互相打架。 */
 
     /* 标签云：hover 抬升 + 轻微放大。原来只有背景色变化，反馈太弱 */
     .arona-tag-cloud .arona-cloud-item {
@@ -1054,15 +1113,24 @@ const Style = () => {
       perspective: 1000px;
       overflow: hidden;
       -webkit-user-drag: none;
-      transition: height 0.3s;
+      /* 原来这里有一条 transition: height 0.3s。
+         height 是布局属性，而 banner 高 75vh —— 文章页切到 .postViewer
+         (50vh) 时会让整页重排 300ms，正好撞上首屏渲染，白白多掉几帧。
+         这个类在挂载时一次性加上的，本来也看不到过渡，直接去掉。 */
     }
     .arona-banner.postViewer { height: 50vh; }
     .arona-banner.loadingComplete {
-      animation: arona-fade-blur-in 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      animation: arona-fade-blur-in var(--arona-dur-slow) var(--arona-ease-out) forwards;
     }
+    /* 进场：原来是 filter: blur(≈10px) + scale(1.5) → 清晰 + scale(1)。
+       问题在于它作用的是一块 75vh 的全屏 banner，而且正好在首屏渲染那一刻跑：
+       blur 无法合成，每一帧都要对整块区域做一次高斯模糊，实测是本站
+       最贵的一段动画（同一帧里还要画 banner 背景图、波浪 SVG、欢迎框）。
+       现在只保留 scale 的「落定」感：位移全部走 transform，纯合成层，
+       不产生任何重绘。视觉上少了「从雾里显影」，但首屏稳得多。 */
     @keyframes arona-fade-blur-in {
-      from { filter: var(--blur-val); transform: scale(1.5); }
-      to { filter: none; transform: scale(1); }
+      from { transform: scale(1.06); }
+      to { transform: scale(1); }
     }
     .arona-banner .banner-content {
       position: relative;
@@ -1081,7 +1149,11 @@ const Style = () => {
       background-position: center center;
       background-repeat: no-repeat;
       filter: var(--img-brightness);
-      transition: opacity 0.5s ease-in-out, filter 0.5s;
+      /* 只过渡 opacity。原来还带 filter 0.5s —— --img-brightness 会随
+         深浅色切换变化，而 filter 过渡意味着整张全屏背景图每帧重新做一次
+         亮度合成，正好和主题揭幕动画抢同一段时间。改为瞬时生效：
+         换肤时它本来就藏在揭幕的圆形裁剪里，看不出来。 */
+      transition: opacity var(--arona-dur-slow) var(--arona-ease-inout);
       z-index: -1;
     }
     .arona-banner #arona-bg-current { opacity: 1; }
@@ -1113,7 +1185,11 @@ const Style = () => {
       align-items: center;
       justify-content: center;
       z-index: 100;
-      transition: transform 0.2s, color 0.5s, text-shadow 0.5s;
+      /* text-shadow 的过渡同样是逐帧重绘（欢迎框是大字号，模糊半径大），
+         换肤时颜色本来就在圆形揭幕里被盖住，没必要做过渡。 */
+      transition:
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        color var(--arona-dur-slow) var(--arona-ease-inout);
     }
     .arona-welcome-text {
       font-size: max(64px, 4.5vw);
@@ -1147,7 +1223,10 @@ const Style = () => {
       height: max(128px, 7.5vw);
       border-radius: 50%;
       border: solid 3px var(--infobox-border-color);
-      transition: transform 0.6s ease, box-shadow 0.4s ease, filter 0.5s;
+      /* 只过渡 transform：整圈旋转本身已经是「够重」的反馈，
+         再叠 box-shadow + filter 的逐帧插值只会拖慢它。
+         filter（--img-brightness）是深浅色用的，换肤时在揭幕里，不必过渡。 */
+      transition: transform var(--arona-dur-slow) var(--arona-ease-out);
       box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
       cursor: pointer;
       user-select: none;
@@ -1171,11 +1250,14 @@ const Style = () => {
       vertical-align: middle;
       width: 2px;
       height: max(18px, 1vw);
+      background-color: var(--font-color-grey);
+      /* 原来在关键帧里改 background-color —— 那是一条永不停止的无限动画，
+         每 0.8s 都要重绘一次。改成改 opacity：合成属性，不产生重绘。 */
       animation: arona-pointer-blink 0.8s linear infinite;
     }
     @keyframes arona-pointer-blink {
-      0%, 40% { background-color: var(--font-color-grey); }
-      60%, 100% { background-color: transparent; }
+      0%, 40% { opacity: 1; }
+      60%, 100% { opacity: 0; }
     }
     .arona-info-box ul {
       display: flex;
@@ -1191,7 +1273,12 @@ const Style = () => {
     .arona-info-box .social {
       width: max(32px, 1.5vw);
       height: max(32px, 1.5vw);
-      transition: all 0.5s;
+      /* 原来是 transition: all 0.5s —— 图标上会变的只有颜色和那层辉光。
+         这里的 drop-shadow 只作用在 32px 的小图标上，代价可忽略，
+         所以保留原设计（辉光），只是把 all 收窄成明确的两个属性。 */
+      transition:
+        color var(--arona-dur-fast) var(--arona-ease-inout),
+        filter var(--arona-dur-base) var(--arona-ease-out);
       color: var(--font-color-grey);
       vertical-align: middle;
     }
@@ -1216,7 +1303,7 @@ const Style = () => {
       color: var(--post-InnerBanner-color);
       text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
       z-index: 100;
-      transition: color 0.5s;
+      transition: color var(--arona-dur-slow) var(--arona-ease-inout);
       padding: 0 20px;
       text-align: center;
     }
@@ -1224,7 +1311,7 @@ const Style = () => {
       font-size: max(64px, 4.5vw);
       margin: 0 0 50px;
       color: var(--post-InnerBanner-color);
-      transition: color 0.5s;
+      transition: color var(--arona-dur-slow) var(--arona-ease-inout);
       word-break: break-word;
       overflow-wrap: break-word;
       max-width: 100%;
@@ -1233,7 +1320,7 @@ const Style = () => {
       font-size: max(20px, 1vw);
       font-weight: bold;
       color: var(--post-InnerBanner-color);
-      transition: color 0.5s;
+      transition: color var(--arona-dur-slow) var(--arona-ease-inout);
       word-break: break-word;
       max-width: 100%;
       line-height: 1.6;
@@ -1267,11 +1354,34 @@ const Style = () => {
       background-position: right;
       background-repeat: no-repeat;
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.8);
-      transition: all 0.5s;
+      /* hover 只动 transform 与 border-left-color，两者都不触发重排；
+         阴影的加深交给下面 ::before 的 opacity 过渡 ——
+         box-shadow 是纯绘制属性，逐帧插值会让整张卡（含背景装饰图）
+         每帧重绘一次，长列表里 hover 扫过去会明显掉帧。 */
+      transition:
+        transform var(--arona-dur-slow) var(--arona-ease-out),
+        border-left-color var(--arona-dur-slow) var(--arona-ease-inout);
     }
+    /* 阴影层：一块和卡片等大的透明伪元素，常驻一层较重的阴影，
+       hover 时只改它的 opacity（合成属性，零重绘）。
+       left 取 -16px 是为了抵消卡片 16px 的左边框 ——
+       绝对定位的参照是 padding box，不减的话阴影会整体右移 16px。 */
+    .arona-post-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: -16px;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: 0 8px 26px rgba(var(--blue-shadow-color), 0.5);
+      opacity: 0;
+      transition: opacity var(--arona-dur-slow) var(--arona-ease-out);
+      z-index: 0;
+    }
+    .arona-post-card:hover::before { opacity: 1; }
     .arona-post-card:hover {
-      box-shadow: 0 0 15px rgba(var(--blue-shadow-color), 0.8);
-      transform: translateY(-2px);
+      /* 浮升 4px 而不是 2px：竖条同时点亮，2px 在视觉上几乎看不出来 */
+      transform: translateY(-4px);
+      border-left-color: var(--color-blue);
     }
     .arona-post-card .pinned {
       position: absolute;
@@ -1302,7 +1412,7 @@ const Style = () => {
     .arona-post-card .cover-container img {
       width: 100%; height: 100%;
       object-fit: cover;
-      transition: transform 0.3s ease;
+      transition: transform var(--arona-dur-base) var(--arona-ease-out);
       border-radius: 12px;
     }
     .arona-post-card .cover-container img:hover { transform: scale(1.05); }
@@ -1314,7 +1424,7 @@ const Style = () => {
       left: -16px; top: 9.5px;
       background: var(--pot-border-left);
       border-radius: 2px;
-      transition: background 0.5s;
+      transition: background-color var(--arona-dur-slow) var(--arona-ease-inout);
     }
     .arona-post-card .title .name {
       display: flex;
@@ -1328,7 +1438,12 @@ const Style = () => {
     }
     .arona-post-card .title .name a {
       color: var(--font-color-grey);
-      transition: text-shadow 0.5s, color 0.5s;
+      /* text-shadow 是绘制属性，28px 标题上做 0.5s 过渡 = 每帧重新模糊一遍
+         文字轮廓。保留这个辉光效果，但把时长收到 fast 档：
+         0.5s 拖得越久，重绘的帧数越多，看起来也越「黏」。 */
+      transition:
+        text-shadow var(--arona-dur-fast) var(--arona-ease-out),
+        color var(--arona-dur-base) var(--arona-ease-inout);
       text-decoration: none;
     }
     .arona-post-card .title .name a:hover { text-shadow: 0 0 3px var(--font-color-grey); }
@@ -1374,7 +1489,9 @@ const Style = () => {
       color: var(--font-color-gold);
       background-color: var(--btn-background);
       border-radius: 5px;
-      transition: all 0.5s;
+      transition:
+        background-color var(--arona-dur-fast) var(--arona-ease-inout),
+        color var(--arona-dur-fast) var(--arona-ease-inout);
       text-decoration: none;
       font-size: 16px;
     }
@@ -1405,7 +1522,7 @@ const Style = () => {
     }
     .arona-pagination .page-number:hover,
     .arona-pagination .page-number.active { background-color: var(--btn-hover); color: var(--font-color-gold); }
-    .arona-page-btn { padding: 8px 16px; border-radius: 8px; background: var(--btn-background); color: #fff; text-decoration: none; font-size: 14px; transition: all 0.3s; }
+    .arona-page-btn { padding: 8px 16px; border-radius: 8px; background: var(--btn-background); color: #fff; text-decoration: none; font-size: 14px; transition: background-color var(--arona-dur-fast) var(--arona-ease-inout), color var(--arona-dur-fast) var(--arona-ease-inout); }
     .arona-page-btn:hover { background: var(--btn-hover); color: #fff; }
     .arona-load-more { width: 100%; margin: 16px 0; padding: 16px 0; text-align: center; cursor: pointer; color: var(--font-color-grey); }
     .arona-load-more:hover { color: var(--color-blue); }
@@ -1463,16 +1580,26 @@ const Style = () => {
       right: 3%;
       bottom: 50px;
       filter: drop-shadow(0 0 8px #7171a9);
-      transition: all 0.5s;
+      /* 原来是 transition: all 0.5s，而隐藏态改的是 bottom/right ——
+         fixed 元素上动 bottom/right 是布局动画，每次滚动跨过阈值都要
+         重算一次定位并整层重绘。改成 transform + opacity，纯合成。 */
+      transition:
+        opacity var(--arona-dur-base) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out);
       opacity: 1;
-      transform: translateY(0);
+      transform: translate(0, 0) scale(1);
       cursor: pointer;
       border: none;
       background: transparent;
       padding: 0;
     }
     .arona-totop img { width: 85px; height: auto; pointer-events: none; display: block; }
-    .arona-totop.hidden { bottom: -25%; right: -25%; opacity: 0; }
+    /* 藏到右下角视野外：位移量按视口算，任何尺寸下都能完全移出 */
+    .arona-totop.hidden {
+      opacity: 0;
+      transform: translate(30vw, 30vh) scale(0.5);
+      pointer-events: none;
+    }
     @media (max-width: 768px) { .arona-totop { right: 5%; } .arona-totop img { width: 8vh; } }
 
     /* 进度环：套在图标外面的一圈描边圆环。
@@ -1496,14 +1623,15 @@ const Style = () => {
     .arona-totop-ring .ring-track { stroke: rgba(var(--blue-shadow-color), 0.22); }
     .arona-totop-ring .ring-bar {
       stroke: var(--color-blue);
-      /* 进度环本身也要有过渡，否则快速滚动时它一格格跳 */
+      /* 进度环本身也要有过渡，否则快速滚动时它一格格跳。
+         0.15s 已经够短，改 token 会把「跟手」变成「拖手」，保持线性短过渡。 */
       transition: stroke-dashoffset 0.15s linear;
       filter: drop-shadow(0 0 4px rgba(var(--blue-shadow-color), 0.7));
     }
     html.dark .arona-totop-ring .ring-bar { stroke: #9ec5fd; }
     /* hover 时图标轻微放大，配合 ring 一起给反馈 */
     .arona-totop:hover .arona-totop-ring { transform: scale(1.06); }
-    .arona-totop-ring { transition: transform 0.35s cubic-bezier(0.22, 0.68, 0, 1); }
+    .arona-totop-ring { transition: transform var(--arona-dur-base) var(--arona-ease-out); }
 
     /* ==================================================================
        Splash 开屏 (Splash.astro)
@@ -1514,18 +1642,34 @@ const Style = () => {
       position: fixed;
       top: 0; left: 0;
       width: 100vw; height: 100vh;
-      display: flex;
+      /* 默认不显示：SSR 已经把真实内容画出来了，开屏若在 HTML 里就可见，
+         会把内容盖到 JS 下载完为止（慢网实测 5~7 秒）。由 Splash.js 在
+         「页面本来没有 SSR 内容」时再挂 .arona-splash-on 打开。 */
+      display: none;
       justify-content: center;
       align-items: center;
       background: linear-gradient(#b9e6f6, #ece5f4);
       z-index: 9999;
       transition: opacity 500ms ease-in-out;
     }
+    .arona-splash.arona-splash-on { display: flex; }
     .arona-splash svg { width: min(60vw, 900px); height: auto; }
     .arona-splash .triangle-group path { fill: white; fill-opacity: 0.15; }
     .arona-splash .circle-path { fill: #e0f0fa; fill-opacity: 0.9; }
     .arona-splash .led-path { fill: white; filter: url(#arona-splash-glow); }
     .arona-splash .glow-color { flood-color: white; }
+    /* 呼吸：原来由 Splash.js 用 requestAnimationFrame 每帧把 <g> 的
+       style.opacity 加减 0.01 来驱动 —— 等于让主线程常驻 60fps 循环，
+       而这段时间恰好是首屏最忙的时候（还要解析 CSS、水合 React）。
+       换成 CSS 动画后由样式/合成线程接管，主线程彻底空出来。
+       用 alternate 而不是手写方向判断，也省掉了 JS 里的边界回弹逻辑。 */
+    .arona-splash .breath-group {
+      animation: arona-splash-breathe 1.6s var(--arona-ease-inout) infinite alternate;
+    }
+    @keyframes arona-splash-breathe {
+      from { opacity: 0.3; }
+      to { opacity: 1; }
+    }
     html.dark .arona-splash, html[theme='dark'] .arona-splash { background: linear-gradient(#c3bde9, #fee4ff); }
     html.dark .arona-splash .circle-path, html[theme='dark'] .arona-splash .circle-path { fill: #fee4ff; }
     html.dark .arona-splash .glow-color, html[theme='dark'] .arona-splash .glow-color { flood-color: #efe0fd; }
@@ -1566,7 +1710,9 @@ const Style = () => {
       width: auto;
       filter: drop-shadow(0 0 3px rgba(40, 42, 44, 0.42));
       cursor: pointer;
-      transition: opacity 0.3s ease, bottom 0.3s ease;
+      /* 原来还带 bottom 0.3s —— 同样是布局动画，而 bottom 只在断点切换时
+         由媒体查询改一次，过渡毫无意义。 */
+      transition: opacity var(--arona-dur-base) var(--arona-ease-inout);
     }
     /* 窄屏时角色降透明度，避免挡住正文内容；鼠标移上去恢复不透明。
        参考站原版有这条 :hover 恢复规则，复刻时漏了，导致窄屏下角色永远是半透明的。 */
@@ -1640,7 +1786,9 @@ const Style = () => {
       cursor: pointer;
       opacity: 0.5;
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.6);
-      transition: opacity 0.2s var(--transition-curve), transform 0.2s var(--transition-curve);
+      transition:
+        opacity var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-spring);
     }
     .arona-spine-restore:hover { opacity: 1; transform: scale(1.08); }
     .arona-spine-restore:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 2px; }
@@ -1694,7 +1842,7 @@ const Style = () => {
       display: flex;
       flex-direction: column;
       align-items: center;
-      animation: arona-pop-up 0.3s forwards;
+      animation: arona-pop-up var(--arona-dur-base) var(--arona-ease-out) forwards;
     }
     @keyframes arona-pop-up {
       from { opacity: 0; transform: scale(0.9); }
@@ -1735,7 +1883,9 @@ const Style = () => {
       padding: 0;
       line-height: 1;
       color: var(--font-color-grey);
-      transition: all 0.3s ease;
+      transition:
+        color var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-spring);
     }
     .arona-search-dialog .close-btn:hover { color: var(--color-blue); background: transparent; transform: scale(1.1); }
     .arona-search-dialog input {
@@ -1777,7 +1927,11 @@ const Style = () => {
       background-position: right;
       background-repeat: no-repeat;
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.6);
-      transition: all 0.5s;
+      /* 收窄 all：这里会变的只有位移、阴影、左边框色 */
+      transition:
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        box-shadow var(--arona-dur-base) var(--arona-ease-out),
+        border-left-color var(--arona-dur-base) var(--arona-ease-inout);
       cursor: pointer;
       overflow: hidden;
       flex-shrink: 0;
@@ -1813,7 +1967,11 @@ const Style = () => {
       border-radius: 32px;
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.8);
       color: var(--color-text-secondary);
-      transition: border 0.5s, background 0.5s, box-shadow 0.5s;
+      /* border 简写会把 border-width/style 也纳入插值，这里只换颜色；
+         box-shadow 换肤时不变，去掉。 */
+      transition:
+        background-color var(--arona-dur-slow) var(--arona-ease-inout),
+        border-color var(--arona-dur-slow) var(--arona-ease-inout);
     }
     .arona-toc::-webkit-scrollbar { width: 4px; }
     .arona-toc::-webkit-scrollbar-track { background: transparent; }
@@ -1855,14 +2013,23 @@ const Style = () => {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      transition: color 0.2s, background-color 0.2s;
+      transition:
+        color var(--arona-dur-fast) var(--arona-ease-inout),
+        background-color var(--arona-dur-fast) var(--arona-ease-inout);
     }
     .arona-toc-level-3 .arona-toc-link { font-size: 12px; }
     .arona-toc-sub-list {
       max-height: 0;
       overflow: hidden;
       opacity: 0;
-      transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+      /* max-height 是布局属性，DOM 结构决定了没法换成 transform
+         （会把文字拉扁），但可以把 margin 从过渡里摘掉 ——
+         4px 的间距跳变肉眼看不出来，却省掉每帧一次重排。
+         时长收到 fast 档：max-height 给的是 500px 上限，实际内容往往
+         只有 60~80px，过渡在前 15% 就跑完了，拖长只会显得「点了没反应」。 */
+      transition:
+        max-height var(--arona-dur-fast) var(--arona-ease-inout),
+        opacity var(--arona-dur-fast) var(--arona-ease-inout);
     }
     .arona-toc-sub-list.is-visible { max-height: 500px; opacity: 1; margin: 4px 0 8px 0; }
     .arona-toc-link:hover {
@@ -1890,7 +2057,9 @@ const Style = () => {
       border: solid 2px var(--foreground-color);
       background: var(--foreground-color);
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.8);
-      transition: background 0.5s, box-shadow 0.5s;
+      /* background 是简写，会把 background-image 一起纳入过渡比对；
+         这张大卡片只需要底色变化。box-shadow 换肤时不变，也去掉。 */
+      transition: background-color var(--arona-dur-slow) var(--arona-ease-inout);
       max-width: calc(1200px - 260px - 24px);
     }
     .arona-post-layout.no-toc .arona-view-box { margin: 0 auto; max-width: 1200px; }
@@ -1986,7 +2155,9 @@ const Style = () => {
       background: var(--foreground-color);
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.8);
       text-decoration: none;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition:
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        box-shadow var(--arona-dur-base) var(--arona-ease-out);
     }
     .arona-post-nav a:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(var(--blue-shadow-color), 0.5); }
     .arona-post-nav a.next { align-items: flex-end; text-align: right; margin-left: auto; }
@@ -2039,7 +2210,7 @@ const Style = () => {
       padding: 6px 10px;
       cursor: pointer;
       font-family: inherit;
-      transition: background-color 0.3s var(--transition-curve);
+      transition: background-color var(--arona-dur-fast) var(--arona-ease-inout);
     }
     .arona-sidebar .arona-greeting:hover { background-color: rgba(var(--blue-shadow-color), 0.16); }
     .arona-sidebar .arona-info-avatar {
@@ -2077,7 +2248,7 @@ const Style = () => {
       font-size: 15px;
       color: var(--font-color-grey);
       background-color: rgba(var(--blue-shadow-color), 0.1);
-      transition: background-color 0.3s var(--transition-curve), color 0.3s var(--transition-curve);
+      transition: background-color var(--arona-dur-fast) var(--arona-ease-inout), color var(--arona-dur-fast) var(--arona-ease-inout);
     }
     .arona-sidebar .arona-info-social a:hover {
       color: #fff;
@@ -2090,7 +2261,7 @@ const Style = () => {
       border-radius: 16px;
       color: var(--font-color-grey);
       background-color: rgba(var(--blue-shadow-color), 0.1);
-      transition: background-color 0.3s var(--transition-curve), color 0.3s var(--transition-curve);
+      transition: background-color var(--arona-dur-fast) var(--arona-ease-inout), color var(--arona-dur-fast) var(--arona-ease-inout);
     }
     .arona-sidebar .arona-info-more:hover { color: #fff; background-color: var(--btn-background); }
 
@@ -2105,7 +2276,7 @@ const Style = () => {
       font-size: 14px;
       color: #fff;
       background-color: var(--btn-background);
-      transition: background-color 0.3s var(--transition-curve), transform 0.2s;
+      transition: background-color var(--arona-dur-fast) var(--arona-ease-inout), transform var(--arona-dur-base) var(--arona-ease-out);
     }
     .arona-sidebar .arona-qq-btn:hover {
       background-color: var(--btn-hover);
@@ -2120,13 +2291,20 @@ const Style = () => {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 3px;
       background: transparent; z-index: 101;
-      opacity: 0; transition: opacity 0.3s ease;
+      opacity: 0; transition: opacity var(--arona-dur-base) var(--arona-ease-inout);
     }
     .arona-reading-progress.visible { opacity: 1; }
     .arona-reading-progress .fill {
-      height: 100%; width: 0%;
+      height: 100%;
+      /* 宽度恒为 100%，进度靠 scaleX 表达（见 ReadingProgress.js）。
+         原来改 width，滚动时每帧一次布局；现在是合成变换。 */
+      width: 100%;
+      transform: scaleX(0);
+      transform-origin: 0 50%;
       background: var(--color-blue, #328cfa);
-      transition: width 0.1s ease-out;
+      /* 短过渡只为把两帧之间的跳变抹平，不能太长否则跟不上手指 */
+      transition: transform 0.1s linear;
+      will-change: transform;
     }
 
     /* 移动端 TOC 按钮（简化） */
@@ -2156,7 +2334,10 @@ const Style = () => {
       background: var(--foreground-color);
       border: 2px solid var(--foreground-color);
       box-shadow: 0 0 8px rgba(var(--blue-shadow-color), 0.5);
-      transition: all 0.4s;
+      transition:
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        color var(--arona-dur-fast) var(--arona-ease-inout),
+        background-color var(--arona-dur-fast) var(--arona-ease-inout);
     }
     .arona-cloud-item:hover { color: var(--color-blue); transform: translateY(-2px); }
     .arona-404 { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; min-height: 50vh; text-align: center; }
@@ -2361,12 +2542,28 @@ const Style = () => {
     .arona-content p,
     .arona-content li { overflow-wrap: break-word; }
 
-    /* 减少动态效果 */
+    /* 减少动态效果
+       ------------------------------------------------------------------
+       全局兜底：把动画/过渡压到「一帧内结束」。这比逐条写
+       @media (prefers-reduced-motion) 覆盖更可靠 —— 以后新增的动效
+       自动被覆盖，不会漏。
+       另外两处必须显式处理：
+         · ::view-transition-* 是浏览器顶层的过渡伪元素，不在 * 的范围内，
+           不写这条的话主题切换的圆形揭幕仍会照常播；
+         · 平滑滚动同样属于「动态效果」，一并关掉。 */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: 0.001ms !important;
         animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
         transition-duration: 0.001ms !important;
+        transition-delay: 0ms !important;
+        scroll-behavior: auto !important;
+      }
+      ::view-transition-group(*),
+      ::view-transition-old(*),
+      ::view-transition-new(*) {
+        animation: none !important;
       }
     }
 

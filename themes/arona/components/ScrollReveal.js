@@ -119,8 +119,23 @@ export const ScrollReveal = () => {
 
     /* 列表是无限滚动 / 分页动态追加的，路由切换也会整块替换内容 ——
        用 MutationObserver 兜住「后出现的元素」，比在业务组件里
-       逐个调 register 省事，也不会漏。 */
-    const mo = new MutationObserver(() => scan())
+       逐个调 register 省事，也不会漏。
+
+       但 body 上 subtree:true 的观察者回调非常密集（React 每次提交、
+       图片插入、字体加载后的重排都会触发），原来每个回调都同步跑一遍
+       querySelectorAll —— 首屏水合那几百毫秒里能触发几十次。
+       现在合并成「一个观察者 + 一帧一次」：多次变更只会排一次 rAF。 */
+    let syncRaf = 0
+    const scheduleSync = () => {
+      if (syncRaf) return
+      syncRaf = requestAnimationFrame(() => {
+        syncRaf = 0
+        scan()
+        bindSheen()
+      })
+    }
+
+    const mo = new MutationObserver(scheduleSync)
     mo.observe(document.body, { childList: true, subtree: true })
 
     const onRouteChange = () => requestAnimationFrame(scan)
@@ -134,22 +149,20 @@ export const ScrollReveal = () => {
     const flush = () => {
       rafId = 0
       if (!pending) return
-      const { el, x, y } = pending
+      const { el, clientX, clientY } = pending
       pending = null
+      /* 读 rect 放到 rAF 里做：pointermove 的频率远高于帧率，
+         原来每个事件都同步读一次布局，等于每帧强制多次样式计算。
+         现在每帧最多读一次，而且只读当前悬停的那一个元素。 */
+      const rect = el.getBoundingClientRect()
+      if (!rect.width || !rect.height) return
       // 用百分比而不是 px：卡片尺寸变化（响应式/字体加载后重排）时不用重算
-      el.style.setProperty('--mx', `${x}%`)
-      el.style.setProperty('--my', `${y}%`)
+      el.style.setProperty('--mx', `${((clientX - rect.left) / rect.width) * 100}%`)
+      el.style.setProperty('--my', `${((clientY - rect.top) / rect.height) * 100}%`)
     }
 
     const onMove = e => {
-      const el = e.currentTarget
-      const rect = el.getBoundingClientRect()
-      if (!rect.width || !rect.height) return
-      pending = {
-        el,
-        x: ((e.clientX - rect.left) / rect.width) * 100,
-        y: ((e.clientY - rect.top) / rect.height) * 100
-      }
+      pending = { el: e.currentTarget, clientX: e.clientX, clientY: e.clientY }
       if (!rafId) rafId = requestAnimationFrame(flush)
     }
 
@@ -172,16 +185,15 @@ export const ScrollReveal = () => {
     }
 
     bindSheen()
-    const moSheen = new MutationObserver(() => bindSheen())
-    moSheen.observe(document.body, { childList: true, subtree: true })
+    // 第二个 MutationObserver 已合并进上面的 mo（见 scheduleSync）
 
     return () => {
       root.classList.remove('arona-reveal-on')
       io.disconnect()
       mo.disconnect()
-      moSheen.disconnect()
       router.events.off('routeChangeComplete', onRouteChange)
       if (rafId) cancelAnimationFrame(rafId)
+      if (syncRaf) cancelAnimationFrame(syncRaf)
       for (const el of sheenNodes) {
         el.removeEventListener('pointermove', onMove)
         el.removeEventListener('pointerleave', onLeave)

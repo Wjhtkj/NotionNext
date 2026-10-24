@@ -58,6 +58,12 @@ const Catalog = ({ toc }) => {
   }, [tree])
 
   const throttleMs = 200
+  /* 记录上一次把目录滚到第几项。
+     原来只要 index >= 0 就调一次 scrollTo({behavior:'smooth'})，而这段
+     是挂在 scroll 上的节流回调 —— 滚动时每 200ms 就重新发起一次平滑滚动，
+     新动画把上一次打断，目录看起来一直在「抽搐」。
+     现在只在「激活项真的换了」时才滚，动画能完整播完。 */
+  const lastTocIndexRef = useRef(-1)
   const actionSectionScrollSpy = useCallback(
     throttle(() => {
       const sections = document.getElementsByClassName('notion-h')
@@ -79,8 +85,13 @@ const Catalog = ({ toc }) => {
       }
       setActiveSection(currentSectionId)
       const index = tocIds.indexOf(currentSectionId)
-      if (index >= 0) {
-        tRef?.current?.scrollTo({ top: 28 * index, behavior: 'smooth' })
+      if (index >= 0 && index !== lastTocIndexRef.current) {
+        lastTocIndexRef.current = index
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        tRef?.current?.scrollTo({
+          top: 28 * index,
+          behavior: reduce ? 'auto' : 'smooth'
+        })
       }
     }, throttleMs),
     [tocIds]
