@@ -3,12 +3,32 @@ import getConfig from 'next/config'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/router'
 import { getQueryParam, getQueryVariable, isBrowser } from '../lib/utils'
+/* 站点自身主题的布局**静态**引入，理由见下方 STATIC_THEME_MODULES 的注释 */
+import * as AronaTheme from '@/themes/arona'
 
 // 在next.config.js中扫描所有主题
 export const { THEMES = [] } = getConfig()?.publicRuntimeConfig || {}
 const baseLayoutCache = new Map()
 const layoutByThemeCache = new Map()
 let domFixTimer = null
+
+/* ==================================================================
+   站点自身主题（BLOG.THEME）的布局直接静态引用
+   ------------------------------------------------------------------
+   其余主题仍走 next/dynamic。原因是 dynamic 的 import 路径是**运行时拼的**
+   （`@/themes/${themeName}`），webpack 只能生成 context、没法给 babel 插件
+   静态清单，于是 SSR 阶段模块永远「还没就绪」，dynamic 渲染 loading/ null：
+
+     <div id="__next"><script .../></div>      ← 首屏 HTML 里一个主题元素都没有
+
+   用户要等 JS 下载 + 执行完才看到任何东西。实测慢网（国内直连 Vercel）
+   首屏 7 秒纯黑，之后才轮到开屏动画。
+   静态引用后 SSR 直接输出真实 HTML，HTML+CSS 到达就能看见内容，
+   JS 只负责交互与后续动画。
+   ================================================================== */
+const STATIC_THEME_MODULES = {
+  arona: AronaTheme
+}
 
 const LayoutLoading = () => (
   <div className='min-h-screen w-full bg-[#f6f6f1] dark:bg-black' />
@@ -191,6 +211,11 @@ const getCurrentTheme = (router, fallbackTheme) => {
  */
 export const getBaseLayoutByTheme = theme => {
   const normalizedTheme = normalizeThemeName(theme)
+  /* 站点自身主题：静态组件，SSR 能直接渲染出 #theme-arona 整棵树 */
+  const staticModule = STATIC_THEME_MODULES[normalizedTheme]
+  if (staticModule?.LayoutBase) {
+    return staticModule.LayoutBase
+  }
   if (baseLayoutCache.has(normalizedTheme)) {
     return baseLayoutCache.get(normalizedTheme)
   }
@@ -223,6 +248,14 @@ export const useLayoutByTheme = ({ layoutName, theme }) => {
   const router = useRouter()
   const themeQuery = getCurrentTheme(router, theme)
   const cacheKey = `${themeQuery}:${layoutName}`
+
+  /* 站点自身主题：直接返回静态组件（SSR 有真实 HTML，也不再额外请求一个 chunk）。
+     取不到对应布局时按 dynamic 路径的既有规则回退 LayoutSlug。 */
+  const staticModule = STATIC_THEME_MODULES[themeQuery]
+  if (staticModule) {
+    scheduleFixThemeDOM(80)
+    return staticModule[layoutName] || staticModule.LayoutSlug || EmptyPageLayout
+  }
 
   if (layoutByThemeCache.has(cacheKey)) {
     scheduleFixThemeDOM(themeQuery === BLOG.THEME ? 80 : 240)

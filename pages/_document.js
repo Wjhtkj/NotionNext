@@ -50,7 +50,11 @@ class MyDocument extends Document {
           <link rel='preconnect' href='https://images.unsplash.com' />
           <link rel='dns-prefetch' href='//images.unsplash.com' />
 
-          {/* 预加载字体 */}
+          {/* 预加载字体
+              注意：这三个字体加起来约 285KB，若按默认优先级 preload 会和首屏
+              关键 CSS / JS 抢带宽，直接把 FCP 往后推。图标是装饰性的，用
+              fetchPriority='low' 让它们排在关键资源之后下载，既能提前预热，
+              又不挡首帧。 */}
           {BLOG.FONT_AWESOME && (
             <>
               {isLocalFontAwesome && (
@@ -61,6 +65,7 @@ class MyDocument extends Document {
                     as='font'
                     type='font/woff2'
                     crossOrigin='anonymous'
+                    fetchPriority='low'
                   />
                   <link
                     rel='preload'
@@ -68,6 +73,7 @@ class MyDocument extends Document {
                     as='font'
                     type='font/woff2'
                     crossOrigin='anonymous'
+                    fetchPriority='low'
                   />
                   <link
                     rel='preload'
@@ -75,6 +81,7 @@ class MyDocument extends Document {
                     as='font'
                     type='font/woff2'
                     crossOrigin='anonymous'
+                    fetchPriority='low'
                   />
                 </>
               )}

@@ -418,6 +418,22 @@ const nextConfig = {
       'lib/utils/throttle.js'
     )
 
+    // 未配置 Clerk 时，把客户端 Clerk 包换成空实现。
+    // @clerk/nextjs 在 lib/global.js / _app.js 里是静态引入的，即使完全用不到
+    // 也会整包进入首屏 _app（实测约 90KB gzip）。带 $ 表示只精确匹配这个入口，
+    // @clerk/nextjs/server（middleware、api）不受影响。
+    // 一旦配置了 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY，此处不生效，行为与原来一致。
+    if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+      config.resolve.alias['@clerk/nextjs$'] = path.resolve(
+        __dirname,
+        'lib/shims/clerk-nextjs.js'
+      )
+      config.resolve.alias['@clerk/localizations$'] = path.resolve(
+        __dirname,
+        'lib/shims/clerk-localizations.js'
+      )
+    }
+
     if (!isServer) {
       console.log(
         '[ThemeResolver][webpack]',
