@@ -26,10 +26,11 @@ import { useEffect, useRef, useState } from 'react'
  *      arona-theme-pref  —— SpinePlayer 靠它选看板娘角色（arona/plana），
  *                            LayoutBase 首次加载也读它。
  *
- * 3) 切换动画是「以按钮为圆心的圆形揭幕」（详见 toggleTheme 内的时序注释）：
- *    先铺一层与旧页面背景一致的遮罩，在遮罩底下换主题，再把遮罩的
- *    clip-path 圆收回到点击点。四步必须在同一个 JS 任务里同步完成，
- *    浏览器只会画一帧，用户才看不到「旧页面闪一下新颜色」的中间态。
+ * 3) 切换动画是「以按钮为圆心的圆形揭幕」，用 View Transitions API 实现，
+ *    详见 toggleTheme 上方的注释。**不要再退回「全屏遮罩 + clip-path」那套**：
+ *    clip-path 的圆半径取「点击点到最远视口角」，这个圆恒等于或大于整个
+ *    视口矩形，裁剪边界永远落在盒子外面 —— 遮罩实际上一直是个矩形，
+ *    scale() 缩小时看起来就是「一块矩形往按钮里缩」，不是圆形揭幕。
  */
 export const ThemeToggle = () => {
   const { isDarkMode, updateDarkMode } = useGlobal()
@@ -37,8 +38,9 @@ export const ThemeToggle = () => {
      APPEARANCE），与服务端渲染一致，不会 hydration 报警。 */
   const [dark, setDark] = useState(!!isDarkMode)
   const animTimer = useRef(null)
-  /* 正在播放的揭幕遮罩，连点时先移除旧的那个，避免叠多层 */
-  const rippleRef = useRef(null)
+  /* 揭幕的序号：连点时用它判断「这次回调还是不是最新的那次」，
+     避免上一段动画的收尾把新动画要用的类摘掉 */
+  const seqRef = useRef(0)
 
   /* 别人改了主题也要同步文案（例如将来再加别的切换入口）。
      监听 <html> 的 class/theme 属性即可，这是全局唯一的事实来源。 */
@@ -58,23 +60,19 @@ export const ThemeToggle = () => {
     return () => mo.disconnect()
   }, [])
 
-  /* 卸载时清掉计时器与可能残留的遮罩 */
+  /* 卸载时清掉计时器与可能残留的状态类 */
   useEffect(
     () => () => {
       if (animTimer.current) clearTimeout(animTimer.current)
-      if (rippleRef.current) {
-        rippleRef.current.remove()
-        rippleRef.current = null
-      }
-      document.documentElement.classList.remove('arona-theme-ripple-active')
+      document.documentElement.classList.remove('arona-theme-switching')
     },
     []
   )
 
   /* 预热两张主题背景图（浅 /arona/background.svg、深 /arona/background_dark.svg）。
-     换主题时新图若没进缓存，fetch + 解码 + 整屏绘制要占几百毫秒主线程
-     （冷缓存实测 744ms 帧间隙），而这段时间遮罩还盖着页面、动画跑不动。
-     从样式表里扫 --theme-background-image 的声明拿 URL，不硬编码。 */
+     揭幕是拿「换肤后的新页面快照」来裁圆的：新背景图若还没解码，快照里就是
+     一片纯色，圆扫过去之后图片才补上，等于白做了动画。从样式表里扫
+     --theme-background-image 的声明拿 URL，不硬编码。 */
   useEffect(() => {
     try {
       for (const sheet of document.styleSheets) {
@@ -94,7 +92,7 @@ export const ThemeToggle = () => {
         }
       }
     } catch (e) {
-      /* 预热失败不影响功能，只是第一次切换会慢一点 */
+      /* 预热失败不影响功能，只是第一次切换时圆里可能晚一帧出图 */
     }
   }, [])
 
@@ -102,10 +100,10 @@ export const ThemeToggle = () => {
     document.documentElement.classList.contains('dark') ||
     document.documentElement.getAttribute('theme') === 'dark'
 
-  /* 真正换主题（不带动画）。抽出成函数是因为圆形揭幕要先铺遮罩、
-     再在遮罩底下调用它，减少动画时也直接调用它。
-     animate=false 供圆形揭幕使用：遮罩盖着整页，颜色过渡做了也看不见，
-     只剩重绘成本（还会把 transitionend 推迟到兜底定时器才撤遮罩）。 */
+  /* 真正换主题（不带动画）。抽出成函数是因为揭幕要在 View Transition 的
+     回调里调用它，退化路径也直接调用它。
+     animate=false 供揭幕使用：快照拍的就是换肤后的静止画面，颜色过渡
+     不但看不见，还会让快照停在中间色上（详见下方 arona-theme-switching）。 */
   const applyTheme = (next, animate = true) => {
     const root = document.documentElement
 
@@ -131,8 +129,7 @@ export const ThemeToggle = () => {
 
     /* 颜色过渡：给 <html> 挂一个短命类，让页面底色平滑变色，
        400ms 后摘掉。快速连点时重置计时器，避免类被过早摘掉。
-       揭幕路径传 animate=false —— 直接摘掉进行中的过渡（遮罩底下看不见），
-       把换主题压成「只画一帧」。 */
+       这条路径只给「不支持 View Transitions 的浏览器」用。 */
     if (animTimer.current) {
       clearTimeout(animTimer.current)
       animTimer.current = null
@@ -148,125 +145,96 @@ export const ThemeToggle = () => {
     }
   }
 
-  /* 主题切换动画：以按钮为圆心的「圆形揭幕」。
-     时序（铺遮罩、换主题在同一个 JS 任务里完成，浏览器只画一帧；
-     收缩晚两帧启动，让换主题的那帧先画完）：
-       1. 遮罩底色/背景图复制 #theme-arona **计算后**的背景（此刻 <html>
-          还没换类），盖上来的首帧与旧页面逐像素一致，用户感知不到闪；
-       2. clip-path 半径取「点击点到最远视口角的距离」，scale(1) 时正好盖满；
-       3. void offsetWidth 强制布局，把初始状态提交为过渡起点；
-       4. 挂 arona-theme-ripple-active（CSS 里关掉根元素自身的背景过渡），
-          在遮罩底下换主题 —— 换肤的重排重绘被遮罩盖住，且不和动画抢主线程；
-       5. 等两帧：第一帧把「遮罩 + 新主题」画出来，第二帧确认提交后加
-          -shrink，transform: scale(1) → scale(0)（缩放原点=点击点），
-          旧背景圆随缩放向点击点收拢，新主题被一圈圈揭开。
+  /* 主题切换动画：以按钮为圆心的圆形揭幕（View Transitions API）。
+     时序：
+       1. 把圆心/半径写进 <html> 的 --arona-reveal-*（CSS 关键帧要用）；
+       2. 挂 arona-theme-switching：关掉根元素自身 500ms 的背景过渡，
+          否则快照会拍在「浅色→深色」的中间态上，圆里是灰的；
+       3. startViewTransition(() => applyTheme(next, false))：浏览器在回调
+          返回后给旧页面、新页面各拍一张位图，然后把两张图放进顶层叠加；
+       4. CSS 里 ::view-transition-old(root) 不参与动画（一直铺着，就是旧页面），
+          ::view-transition-new(root) 按 circle(0) → circle(R) 裁切 ——
+          新主题随圆边扩张被揭开，旧页面在圆外原样保留，连文字一起；
+       5. 过渡结束（finished）后摘掉 switching 类。
 
-     为什么动画只跑 transform：clip-path 过渡不走合成器，每帧在主线程
-     重绘整屏背景图（同环境 A/B 实测旧版 21~26fps、5~7 帧 >50ms 卡顿，
-     新版 44~54fps、仅剩换主题 1 帧）；transform: scale() 由合成器执行、
-     背景只画一次。静态 clip-path 不参与动画。
+     为什么换掉旧实现（全屏遮罩复制旧背景 + transform: scale）：
+     那条路有两个硬伤。① 圆是假的：clip 半径取「点击点到最远角」，圆恒大于
+     视口矩形，裁剪从不生效，实际渲染是**矩形**在缩小（实测截图）；
+     ② 遮罩只复制了背景，页面文字/卡片在点击瞬间就换成新主题了，圆里是
+     一块没有内容的底色，看起来像闪了一下。View Transitions 直接把两帧
+     真实页面拿来叠，旧内容一直在，圆边扫过才换成新主题。
+     成本也低：两张静态位图 + 一个 clip-path 动画，不重绘页面。
 
-     为什么要晚两帧再收缩：换主题本身要重排重绘整页（线上还有 500ms
-     根背景过渡 + 两张不同的背景 SVG），主线程一忙就是几百毫秒。若在同一
-     任务里就加 -shrink，过渡时钟在阻塞期间照走，线程恢复时动画已跳掉
-     大半、transitionend 也被推迟到 900ms 兜底才撤遮罩（实测线上 949ms
-     生命周期、只采到 7 帧）。晚两帧启动，过渡跑在空闲下来的主线程上。 */
+     不支持 View Transitions 的浏览器（Safari < 18.2、Firefox < 144）
+     退回原来的 400ms 颜色过渡，不会出现「点了没反应」。 */
   const toggleTheme = e => {
     const next = !isDarkNow()
 
-    /* 尊重系统「减少动画」：直接换，不插遮罩 */
+    /* 尊重系统「减少动画」：直接换，不插过渡 */
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       applyTheme(next)
       return
     }
 
+    const root = document.documentElement
+    if (typeof document.startViewTransition !== 'function') {
+      applyTheme(next)
+      return
+    }
+
     /* 点击坐标。键盘触发（Enter/Space）时 clientX/Y 都是 0，
-       用按钮中心兜底，动画仍然从按钮位置展开。 */
+       用按钮中心兜底，圆仍然从按钮位置展开。
+       再夹到视口内：万一按钮此刻在视口外（键盘聚焦时页面正在滚动），
+       圆心落在屏幕边上，揭幕仍然是从「最靠近按钮的那条边」推进来，
+       而不是从屏幕外飘进来。 */
     const btn = e && e.currentTarget
     const rect = btn ? btn.getBoundingClientRect() : null
-    const x = e && e.clientX ? e.clientX : rect ? rect.left + rect.width / 2 : window.innerWidth / 2
-    const y = e && e.clientY ? e.clientY : rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+    const clamp = (v, max) => Math.min(Math.max(v, 0), max)
+    const x = clamp(
+      e && e.clientX ? e.clientX : rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+      window.innerWidth
+    )
+    const y = clamp(
+      e && e.clientY ? e.clientY : rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+      window.innerHeight
+    )
 
-    /* 旧主题的整页背景：直接取 #theme-arona **计算后**的背景，而不是读某个
-       CSS 变量。原因是页面根元素真正的 background-color 不一定来自
-       --general-background-color —— lib/themeConsoleStyle 会在样式表尾部生成
-       一条同特异性但排在后面的 #theme-arona { background-color: var(--arona-console-bg) }，
-       线上浅色实际是 #fff、深色是 #000（调色板 BG 令牌），读变量会拿到没生效的
-       那个值（#eaeff5 / #0f0f16），遮罩与旧页面差一个色阶、第一帧就会被看出来。
-       取计算值还顺带覆盖背景图与它的尺寸/定位参数，遮罩与旧页面逐像素一致。 */
-    const themeEl = document.getElementById('theme-arona') || document.documentElement
-    const cs = getComputedStyle(themeEl)
-    const wasDark = isDarkNow()
-    const oldColor = cs.backgroundColor
-    const oldImage = cs.backgroundImage
+    /* 半径 = 点击点到最远视口角的距离，保证圆扩到最大时盖满整屏。
+       多给 24px：快照比 innerWidth/innerHeight 略大（含滚动条与取整误差），
+       收尾时右下角若差一条缝，会露出一条旧主题的边。 */
+    const R =
+      Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      ) + 24
 
-    /* 连点时先撤掉上一段动画的遮罩 */
-    if (rippleRef.current) {
-      rippleRef.current.remove()
-      rippleRef.current = null
+    root.style.setProperty('--arona-reveal-x', `${x}px`)
+    root.style.setProperty('--arona-reveal-y', `${y}px`)
+    root.style.setProperty('--arona-reveal-r', `${R}px`)
+
+    const seq = ++seqRef.current
+    root.classList.add('arona-theme-switching')
+
+    let vt
+    try {
+      vt = document.startViewTransition(() => applyTheme(next, false))
+    } catch (err) {
+      /* 极端情况（例如文档不可见）起不了过渡：老老实实换，别把页面卡在
+         关掉过渡的状态里 */
+      if (seq === seqRef.current) root.classList.remove('arona-theme-switching')
+      applyTheme(next)
+      return
     }
 
-    const ripple = document.createElement('div')
-    ripple.className = 'arona-theme-ripple'
-    /* 静态 clip-path：半径 = 点击点到最远视口角的距离（+2px 余量），
-       scale(1) 时圆刚好盖满整屏，从任意点击点出发都成立。 */
-    const R = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y)) + 2
-    ripple.style.clipPath = `circle(${R}px at ${x}px ${y}px)`
-    /* 缩放原点 = 圆心，圆才会整体向点击点收拢而不是塌向元素中心 */
-    ripple.style.transformOrigin = `${x}px ${y}px`
-    /* 底色：计算值里 transparent 的页面不该让遮罩透明（中间态会漏出来），
-       此时按当前主题退回写死的两个底色。 */
-    if (oldColor && oldColor !== 'rgba(0, 0, 0, 0)' && oldColor !== 'transparent') {
-      ripple.style.backgroundColor = oldColor
-    } else {
-      ripple.style.backgroundColor = wasDark ? '#0f0f16' : '#eaeff5'
+    const cleanup = () => {
+      /* 连点时旧过渡会被新过渡 skip，它的 finished 可能晚于新过渡的启动 ——
+         只有「仍然是最新那次」才允许摘类 */
+      if (seq === seqRef.current) root.classList.remove('arona-theme-switching')
     }
-    if (oldImage && oldImage !== 'none') {
-      /* 背景图连同尺寸/定位参数一起搬过来，遮罩就不只是纯色块，
-         而是和旧页面背景逐像素一致。
-         附着参数强制 scroll：fixed 的背景不随元素变换缩放（规范层面
-         固定在视口），元素一被 scale 背景就会「钉住」不动，圆是缩了、
-         内容却没缩，视觉上是割裂的。scroll 下本元素盒子恰等于视口，
-         渲染结果与页面的 fixed 完全一致，且会跟着一起缩。 */
-      ripple.style.backgroundImage = oldImage
-      ripple.style.backgroundSize = cs.backgroundSize
-      ripple.style.backgroundRepeat = cs.backgroundRepeat
-      ripple.style.backgroundPosition = cs.backgroundPosition
-      ripple.style.backgroundAttachment = 'scroll'
-    }
-    document.body.appendChild(ripple)
-    rippleRef.current = ripple
-    void ripple.offsetWidth /* 强制布局：让 scale(1) 成为过渡起点 */
-
-    /* 揭幕期间关掉页面自身的过渡（根元素 500ms 背景插值 + anim 卡片过渡）：
-       遮罩盖着整页，它们只剩重绘成本，还会推迟 transitionend。 */
-    document.documentElement.classList.add('arona-theme-ripple-active')
-
-    /* 在遮罩底下换主题（animate=false：不挂 anim 类） */
-    applyTheme(next, false)
-
-    const done = () => {
-      ripple.remove()
-      /* 连点场景：旧遮罩的兜底定时器晚于新遮罩启动时才触发，此时
-         rippleRef 已指向新遮罩 —— 不能撤新遮罩的 active 类 */
-      if (rippleRef.current === ripple) {
-        rippleRef.current = null
-        document.documentElement.classList.remove('arona-theme-ripple-active')
-      }
-    }
-
-    /* 晚两帧启动收缩：第一帧画「遮罩 + 新主题」，第二帧确认提交后再加
-       -shrink，过渡跑在空闲下来的主线程上，不和换肤绘制抢时间 */
-    const startShrink = () => {
-      if (!ripple.isConnected) return /* 已被连点逻辑撤掉 */
-      ripple.classList.add('arona-theme-ripple-shrink')
-      /* 兜底定时器从收缩真正启动那一刻才计：换肤再慢也不会把
-         还在缩的遮罩误撤（标签页在后台时过渡不跑，靠它清理） */
-      setTimeout(done, 900)
-    }
-    requestAnimationFrame(() => requestAnimationFrame(startShrink))
-
-    ripple.addEventListener('transitionend', done, { once: true })
+    /* finished 在过渡被 skip 时会 reject，两个分支都要收尾 */
+    vt.finished.then(cleanup, cleanup)
+    /* ready 同样可能 reject（被 skip / 无快照），加个空 catch 免控制台红字 */
+    vt.ready.catch(() => {})
   }
 
   const label = dark ? '切换到浅色模式' : '切换到深色模式'

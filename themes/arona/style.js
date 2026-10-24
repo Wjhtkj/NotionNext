@@ -591,62 +591,56 @@ const Style = () => {
     }
 
     /* ==================================================================
-       主题切换的「圆形揭幕」动画
+       主题切换的「圆形揭幕」（View Transitions API）
        ------------------------------------------------------------------
-       遮罩由 ThemeToggle.js 在点击时动态插入 <body>：
-         .arona-theme-ripple                铺满全屏，静态 clip-path 画圆
-         .arona-theme-ripple-shrink         transform 收缩到点击点（过渡态）
-         html.arona-theme-ripple-active     揭幕进行中（压制页面自身过渡）
+       ThemeToggle.js 在点击时调 document.startViewTransition()，浏览器给
+       旧页面、新页面各拍一张位图叠到顶层，我们只控制「新页面露出多少」：
+         ::view-transition-old(root)   旧页面，**不参与动画**，一直铺在下面
+         ::view-transition-new(root)   新页面，按 circle(0) → circle(R) 裁开
 
-       完整时序（铺遮罩 + 换主题在同一个 JS 任务内完成，浏览器只画一帧；
-       收缩晚两帧启动，让换肤那帧先画完）：
-         1. 插入遮罩，底色/背景图复制 #theme-arona **计算后**的背景 ——
-            首帧与旧页面逐像素一致（注意不能读 --general-background-color：
-            themeConsoleStyle 在样式表尾部盖住了根元素底色，线上真正的
-            底色是调色板 BG 令牌，浅 #fff / 深 #000）；
-         2. clip-path 半径取「点击点到最远视口角的距离」，scale(1) 时正好盖满；
-         3. void offsetWidth 强制布局，把初始状态提交为过渡起点；
-         4. 挂 arona-theme-ripple-active，在遮罩底下换 <html> 的 dark/light 类；
-         5. 晚两帧加 -shrink：transform: scale(1) → scale(0)，圆随缩放向点击点
-            收拢，新主题被一圈圈揭开；transitionend（+900ms 兜底）后移除遮罩。
+       圆心与半径由 JS 写进 <html> 的 --arona-reveal-x/y/r（自定义属性会
+       被过渡伪元素继承），关键帧里就不用塞内联样式。
+       html.arona-theme-switching 是「过渡进行中」的标记，作用有三个：
+         · 关掉 #theme-arona 自身 500ms 的背景/颜色过渡 —— 否则新快照会拍在
+           浅→深的中间色上，圆里是一片灰；
+         · 关掉切换按钮图标的过渡 —— 快照是静止位图，图标若正在旋转淡出，
+           会整段动画冻结成「月亮叠着太阳」的糊影；
+         · 过渡结束由 JS 摘掉（连点时按序号判断，不会误摘新过渡的类）。
 
-       为什么用 transform 而不是动画 clip-path：clip-path 过渡不走合成器，
-       每帧在主线程重绘整屏背景图。同环境 A/B（唯一变量为动画技术）实测：
-       旧版遮罩窗口仅 12~16 帧、avg 38~49ms（21~26fps）、5~7 帧 >50ms
-       卡顿贯穿全程；新版 26~31 帧、avg 19~23ms（44~54fps）、只剩换主题
-       1 帧一次性重绘。transform: scale() 由合成器执行、背景只画一次。
-       静态 clip-path 不参与动画，不会把元素拉回主线程。
-
-       为什么要晚两帧 + 压制页面过渡：换主题要重排重绘整页（根元素自身
-       还有 500ms 背景过渡、深浅背景是不同的 SVG），主线程一忙几百毫秒。
-       同一任务里就收缩的话，过渡时钟在阻塞期间照走，线程恢复时动画已跳掉
-       大半（线上实测 949ms 生命周期、只采到 7 帧）；arona-theme-ripple-active
-       把根元素过渡和 anim 卡片过渡都关掉，换肤压成一帧，收缩跑在空闲主线程上。
+       为什么不沿用「全屏遮罩复制旧背景 + transform: scale」：
+       clip 半径取「点击点到最远视口角」，这个圆恒大于整个视口矩形，裁剪
+       边界永远在盒子外面 —— 遮罩实际一直是**矩形**，scale 缩小时就是一块
+       矩形往按钮里缩，不是圆形揭幕（已由截图实证）；而且遮罩只复制了背景，
+       页面文字在点击瞬间就换成新主题了，圆里是一块没有内容的底色。
+       View Transitions 叠的是两帧真实页面：旧内容一直在，圆边扫过才换，
+       成本还更低（两张静态位图 + 一个 clip-path 动画，不重绘页面）。
        ================================================================== */
-    .arona-theme-ripple {
-      position: fixed;
-      inset: 0;
-      /* 压过所有内容：Splash、抽屉（99）、导航（100）都盖得住 */
-      z-index: 2147483647;
-      pointer-events: none;
-      /* scale(1) 是过渡起点；-shrink 收到 scale(0)。缩放原点由 JS 设为点击点 */
-      transform: scale(1);
-      transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: transform;
+    html.arona-theme-switching::view-transition-old(root),
+    html.arona-theme-switching::view-transition-new(root) {
+      /* 默认的交叉淡入淡出关掉：旧的必须一直可见，新的只由 clip 决定露出多少。
+         mix-blend-mode 归位，避免两层叠加把颜色提亮。 */
+      animation: none;
+      mix-blend-mode: normal;
     }
-    .arona-theme-ripple-shrink {
-      transform: scale(0);
+    html.arona-theme-switching::view-transition-new(root) {
+      animation: arona-theme-reveal 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
-    /* 揭幕进行中：遮罩盖着整页，根元素自身的背景/颜色过渡（见上方
-       #theme-arona 的 transition）只剩重绘成本，还会把 transitionend
-       推迟到兜底定时器才撤遮罩。一律关掉，让换主题只画一帧。 */
-    html.arona-theme-ripple-active #theme-arona {
+    @keyframes arona-theme-reveal {
+      from {
+        clip-path: circle(0px at var(--arona-reveal-x, 50%) var(--arona-reveal-y, 50%));
+      }
+      to {
+        clip-path: circle(
+          var(--arona-reveal-r, 150vmax) at var(--arona-reveal-x, 50%) var(--arona-reveal-y, 50%)
+        );
+      }
+    }
+    /* 揭幕进行中：页面自身的过渡只剩重绘成本，还会把快照拍成中间态 */
+    html.arona-theme-switching #theme-arona {
       transition: none;
     }
-    /* 减少动画时 JS 根本不会插入遮罩；这条是纯 CSS 路径（如将来有别的
-       入口直接操作类）的双保险，让过渡即时完成。 */
-    @media (prefers-reduced-motion: reduce) {
-      .arona-theme-ripple { transition: none; }
+    html.arona-theme-switching .arona-header .theme-toggle svg {
+      transition: none;
     }
 
     /* 下拉菜单 */
