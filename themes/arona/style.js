@@ -1565,10 +1565,75 @@ const Style = () => {
     .arona-footer .footer-info a { color: var(--color-blue); text-decoration: none; }
     .arona-footer .footer-logo { display: flex; align-items: center; height: 75%; }
     .arona-footer .footer-logo img { height: 100%; width: auto; filter: drop-shadow(0 0 8px #328cfa); }
+    /* 页脚「异次元之旅」跳转徽章（官方接入：指向 travel.moe/go.html） */
+    .arona-footer .arona-moe-badge {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+    }
+    .arona-footer .arona-moe-badge-inner {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px 2px 3px;
+      border-radius: 999px;
+      overflow: hidden;
+      background-color: rgba(var(--blue-shadow-color), 0.1);
+      transition:
+        background-color var(--arona-dur-base) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out);
+    }
+    .arona-footer .arona-moe-badge-inner img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      transition: transform var(--arona-dur-base) var(--arona-ease-spring);
+    }
+    .arona-footer .arona-moe-badge-text {
+      font-size: 12px;
+      line-height: 1;
+      color: var(--color-blue);
+      white-space: nowrap;
+    }
+    .arona-footer .arona-moe-badge:hover .arona-moe-badge-inner {
+      background-color: rgba(var(--blue-shadow-color), 0.18);
+      transform: translateY(-1px);
+    }
+    .arona-footer .arona-moe-badge:hover .arona-moe-badge-inner img {
+      transform: scale(1.15) rotate(-10deg);
+    }
+    .arona-footer .arona-moe-badge-shine {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      /* 浅色底用淡蓝光，深色下再换回白光（见 html.dark 覆盖） */
+      background: linear-gradient(
+        105deg,
+        transparent 30%,
+        rgba(56, 168, 255, 0.32) 50%,
+        transparent 70%
+      );
+      transform: translateX(-130%);
+      opacity: 0;
+    }
+    html.dark .arona-footer .arona-moe-badge-shine {
+      background: linear-gradient(
+        105deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 70%
+      );
+    }
+    .arona-footer .arona-moe-badge:hover .arona-moe-badge-shine {
+      animation: arona-moe-sweep 0.75s var(--arona-ease-out);
+    }
     @media (max-width: 768px) {
       .arona-footer { width: calc(100% - 24px); }
       .arona-footer .footer-info { font-size: 12px; }
       .arona-footer .footer-logo img { height: 26px; }
+      .arona-footer .arona-moe-badge-inner img { width: 14px; height: 14px; }
+      .arona-footer .arona-moe-badge-text { font-size: 11px; }
     }
 
     /* ==================================================================
@@ -2282,6 +2347,151 @@ const Style = () => {
       background-color: var(--btn-hover);
       color: #fff;
       transform: translateY(-1px);
+    }
+
+    /* ==================================================================
+       侧栏萌站友链卡（异次元之旅 · travel.moe）
+       接入方式取自官方说明：站点内放一个指向 travel.moe/go.html 的跳转入口。
+       动画只用 transform / opacity / 颜色，时长与曲线统一走主题 token。
+       ================================================================== */
+    .arona-sidebar .arona-moe-card .arona-moe-icon {
+      margin-right: 6px;
+      color: var(--color-blue);
+      display: inline-block;
+      animation: arona-moe-twinkle 3.6s var(--arona-ease-inout) infinite;
+    }
+    .arona-sidebar .arona-moe-link {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 16px;
+      overflow: hidden;
+      background-color: rgba(var(--blue-shadow-color), 0.08);
+      transition:
+        background-color var(--arona-dur-base) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out);
+    }
+    .arona-sidebar .arona-moe-link:hover {
+      background-color: rgba(var(--blue-shadow-color), 0.15);
+      transform: translateY(-1px);
+    }
+    /* 星球图标：常态缓慢浮动，hover 弹一下 */
+    .arona-sidebar .arona-moe-orb {
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      animation: arona-moe-float 4.2s var(--arona-ease-inout) infinite;
+    }
+    .arona-sidebar .arona-moe-orb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: transform var(--arona-dur-base) var(--arona-ease-spring);
+    }
+    .arona-sidebar .arona-moe-link:hover .arona-moe-orb img {
+      transform: scale(1.14) rotate(-8deg);
+    }
+    .arona-sidebar .arona-moe-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .arona-sidebar .arona-moe-copy strong {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--font-color-grey);
+    }
+    .arona-sidebar .arona-moe-copy em {
+      font-style: normal;
+      font-size: 11px;
+      color: var(--color-blue);
+      opacity: 0.85;
+    }
+    .arona-sidebar .arona-moe-arrow {
+      margin-left: auto;
+      flex-shrink: 0;
+      color: var(--color-blue);
+      opacity: 0;
+      transform: translateX(-4px);
+      transition:
+        opacity var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-out);
+    }
+    .arona-sidebar .arona-moe-link:hover .arona-moe-arrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    /* 光带：hover 时从左扫到右，只动 transform / opacity */
+    .arona-sidebar .arona-moe-shine {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      /* 浅色底用淡蓝光：纯白扫光在白色卡片上几乎看不见 */
+      background: linear-gradient(
+        105deg,
+        transparent 30%,
+        rgba(56, 168, 255, 0.32) 50%,
+        transparent 70%
+      );
+      transform: translateX(-130%);
+      opacity: 0;
+    }
+    html.dark .arona-sidebar .arona-moe-shine {
+      background: linear-gradient(
+        105deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 70%
+      );
+    }
+    .arona-sidebar .arona-moe-link:hover .arona-moe-shine {
+      animation: arona-moe-sweep 0.75s var(--arona-ease-out);
+    }
+    .arona-sidebar .arona-moe-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      color: #fff;
+      background-color: var(--btn-background);
+      transition:
+        background-color var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-base) var(--arona-ease-spring);
+    }
+    .arona-sidebar .arona-moe-btn:hover {
+      background-color: var(--btn-hover);
+      color: #fff;
+      transform: translateY(-1px) scale(1.01);
+    }
+    .arona-sidebar .arona-moe-btn-icon {
+      transition: transform var(--arona-dur-base) var(--arona-ease-out);
+    }
+    .arona-sidebar .arona-moe-btn:hover .arona-moe-btn-icon {
+      transform: translateX(2px) rotate(-10deg);
+    }
+
+    @keyframes arona-moe-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+    @keyframes arona-moe-twinkle {
+      0%, 100% { opacity: 0.45; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes arona-moe-sweep {
+      0% { transform: translateX(-130%); opacity: 0; }
+      15% { opacity: 1; }
+      100% { transform: translateX(130%); opacity: 0; }
     }
 
     /* ==================================================================

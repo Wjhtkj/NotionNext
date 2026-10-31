@@ -62,6 +62,25 @@ const CONFIG = {
     url: 'https://qm.qq.com/q/d57URs0h8I'
   },
 
+  // ===== 侧栏「异次元之旅」萌站友链卡片（travel.moe）=====
+  /* 接入方式取自 travel.moe 官方说明：在自己站点放一个指向
+     https://travel.moe/go.html 的跳转链接即可（官方的「跃迁」徽章）。
+     图片已本地化到 public/arona/moe/，避免对方防盗链/离线不可用。
+     enable:false 可整卡关闭。 */
+  ARONA_MOE_CARD: {
+    enable: true,
+    title: '异次元之旅',
+    text: '一起去萌站成员的星球旅行吧',
+    subtext: '萌ICP备 · 跃迁入口',
+    button: '开始跃迁',
+    icon: 'fas fa-rocket',
+    url: 'https://travel.moe/go.html',
+    home: 'https://travel.moe',
+    badge: '萌ICP备',
+    logo: '/arona/moe/moe-ico.png',
+    banner: '/arona/moe/moe-banner.png'
+  },
+
   // ===== 文章列表 =====
   ARONA_POST_LIST_COVER: true,
   ARONA_POST_LIST_STYLE: 'scroll', // 'scroll' 无限滚动 | 'page' 分页

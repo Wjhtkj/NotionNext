@@ -1,6 +1,7 @@
 'use client'
 
 import { siteConfig } from '@/lib/config'
+import CONFIG from '../config'
 
 /**
  * 玻璃拟态页脚（复刻 Endless647 Footer.astro）
@@ -10,6 +11,7 @@ export const Footer = () => {
   const author = siteConfig('AUTHOR') || siteConfig('TITLE')
   const beiAn = siteConfig('BEI_AN')
   const beiAnLink = siteConfig('BEI_AN_LINK') || 'https://beian.miit.gov.cn/'
+  const moe = siteConfig('ARONA_MOE_CARD', {}, CONFIG)
   const year = new Date().getFullYear()
 
   return (
@@ -38,6 +40,23 @@ export const Footer = () => {
                   {beiAn}
                 </a>
               </span>
+            </>
+          )}
+          {moe?.enable !== false && moe?.url && (
+            <>
+              <span className='separator'>|</span>
+              <a
+                className='arona-moe-badge'
+                href={moe.url}
+                target='_blank'
+                rel='noopener noreferrer'
+                title='异次元之旅 · 我们一起去萌站成员的星球旅行吧'>
+                <span className='arona-moe-badge-inner'>
+                  <img src={moe.logo || '/arona/moe/moe-ico.png'} alt='' aria-hidden='true' />
+                  <span className='arona-moe-badge-text'>{moe.title || '异次元之旅'}</span>
+                  <span className='arona-moe-badge-shine' aria-hidden='true' />
+                </span>
+              </a>
             </>
           )}
         </div>

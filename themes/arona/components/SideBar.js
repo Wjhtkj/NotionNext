@@ -89,6 +89,56 @@ const InfoCard = ({ notice }) => {
 }
 
 /**
+ * 萌站友链卡：异次元之旅（travel.moe）
+ * 官方接入方式就是在自己站点放一个指向 travel.moe/go.html 的跳转入口。
+ * 这里的动画只用 transform / opacity / 颜色，遵守本主题的动效体系。
+ */
+const MoeCard = () => {
+  const moe = siteConfig('ARONA_MOE_CARD', {}, CONFIG)
+  if (!moe || moe.enable === false || !moe.url) return null
+
+  const logo = moe.logo || '/arona/moe/moe-ico.png'
+  const title = moe.title || '异次元之旅'
+  const text = moe.text || '一起去萌站成员的星球旅行吧'
+  const icon = moe.icon || 'fas fa-rocket'
+
+  return (
+    <aside className='arona-side-card arona-moe-card'>
+      <h3 className='side-title'>
+        <i className={`${icon} arona-moe-icon`} aria-hidden='true' />
+        {title}
+      </h3>
+      <div className='side-body'>
+        <a
+          className='arona-moe-link'
+          href={moe.url}
+          target='_blank'
+          rel='noopener noreferrer'
+          title={`${title} · ${text}`}>
+          <span className='arona-moe-orb'>
+            <img src={logo} alt='' aria-hidden='true' />
+          </span>
+          <span className='arona-moe-copy'>
+            <strong>{text}</strong>
+            {moe.subtext && <em>{moe.subtext}</em>}
+          </span>
+          <i className='fas fa-chevron-right arona-moe-arrow' aria-hidden='true' />
+          <span className='arona-moe-shine' aria-hidden='true' />
+        </a>
+        <a
+          className='arona-moe-btn'
+          href={moe.url}
+          target='_blank'
+          rel='noopener noreferrer'>
+          <i className={`${icon} arona-moe-btn-icon`} aria-hidden='true' />
+          {moe.button || '开始跃迁'}
+        </a>
+      </div>
+    </aside>
+  )
+}
+
+/**
  * 侧边栏
  */
 export const SideBar = props => {
@@ -167,6 +217,9 @@ export const SideBar = props => {
           </div>
         </aside>
       )}
+
+      {/* 萌站友链：异次元之旅（travel.moe） */}
+      <MoeCard />
     </>
   )
 }
