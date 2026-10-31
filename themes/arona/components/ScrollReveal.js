@@ -83,12 +83,22 @@ export const ScrollReveal = () => {
       }
     )
 
+    /* 「本实例已经处理过的元素」用 WeakSet 记，**不要**写到 DOM 的 data 属性上。
+       踩过的坑：effect 会被跑两轮（主题解析完成 / hydration 后整棵树重挂都会触发），
+       第一轮 cleanup 只 disconnect 了观察器，data 标记却留在 DOM 上；
+       第二轮 scan() 看到标记就把每一个元素都当成「已绑定」跳过去 ——
+       既不重新 observe，也不加 arona-revealed，元素被 CSS 的
+       html.arona-reveal-on ... { opacity: 0 } 永久藏住。
+       线上表现就是首页只有第 1 张卡看得见，其余全空白。
+       WeakSet 随实例销毁，重建时会自然重新处理所有元素。 */
+    const bound = new WeakSet()
+
     const scan = () => {
       const els = document.querySelectorAll(REVEAL_SELECTOR)
       for (const el of els) {
         if (el.classList.contains('arona-revealed')) continue
-        if (el.dataset.aronaRevealBound) continue
-        el.dataset.aronaRevealBound = '1'
+        if (bound.has(el)) continue
+        bound.add(el)
 
         // 错峰：按「同层同类元素」里的序号算延迟。
         const parent = el.parentElement
@@ -116,6 +126,28 @@ export const ScrollReveal = () => {
     }
 
     scan()
+
+    /* 兜底：元素明明在视口里、却还是 opacity:0 —— 这时候不能再指望 IO。
+       滚动 / 窗口尺寸变化时同步补一次判定，命中就当场亮起来。
+       IO 正常工作时这里永远不命中，等于零开销（一次 rAF + 一次读 rect）。 */
+    let fallbackRaf = 0
+    const revealVisibleNow = () => {
+      fallbackRaf = 0
+      for (const el of document.querySelectorAll(REVEAL_SELECTOR)) {
+        if (el.classList.contains('arona-revealed')) continue
+        const rect = el.getBoundingClientRect()
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          el.classList.add('arona-revealed')
+          io.unobserve(el)
+        }
+      }
+    }
+    const scheduleFallback = () => {
+      if (fallbackRaf) return
+      fallbackRaf = requestAnimationFrame(revealVisibleNow)
+    }
+    window.addEventListener('scroll', scheduleFallback, { passive: true })
+    window.addEventListener('resize', scheduleFallback)
 
     /* 列表是无限滚动 / 分页动态追加的，路由切换也会整块替换内容 ——
        用 MutationObserver 兜住「后出现的元素」，比在业务组件里
@@ -173,11 +205,15 @@ export const ScrollReveal = () => {
       el.style.setProperty('--my', '50%')
     }
 
+    /* 高光的绑定标记同样用 WeakSet：data 属性会在重挂后残留，
+       导致第二轮 bindSheen 全部跳过 —— 旧监听已被 cleanup 摘掉，
+       结果就是「鼠标高光彻底失效」。 */
+    const sheenBound = new WeakSet()
     const bindSheen = () => {
       if (reduceMotion) return
       for (const el of document.querySelectorAll(SHEEN_SELECTOR)) {
-        if (el.dataset.aronaSheenBound) continue
-        el.dataset.aronaSheenBound = '1'
+        if (sheenBound.has(el)) continue
+        sheenBound.add(el)
         el.addEventListener('pointermove', onMove)
         el.addEventListener('pointerleave', onLeave)
         sheenNodes.push(el)
@@ -192,8 +228,11 @@ export const ScrollReveal = () => {
       io.disconnect()
       mo.disconnect()
       router.events.off('routeChangeComplete', onRouteChange)
+      window.removeEventListener('scroll', scheduleFallback)
+      window.removeEventListener('resize', scheduleFallback)
       if (rafId) cancelAnimationFrame(rafId)
       if (syncRaf) cancelAnimationFrame(syncRaf)
+      if (fallbackRaf) cancelAnimationFrame(fallbackRaf)
       for (const el of sheenNodes) {
         el.removeEventListener('pointermove', onMove)
         el.removeEventListener('pointerleave', onLeave)
