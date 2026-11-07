@@ -20,6 +20,7 @@ export const Header = props => {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const navRef = useRef(null)
+  const AUTO_HIDE = siteConfig('ARONA_NAV_AUTO_HIDE', true, CONFIG)
 
   /* 顶部菜单。
      ★ 关键：默认菜单（首页 / 关于）不是唯一来源 ——
@@ -173,6 +174,45 @@ export const Header = props => {
     setDrawerOpen(false)
     setExpandedSub(null)
   }, [router.asPath])
+
+  /* 顶栏随滚动方向收起 / 恢复（06）。
+     rAF 合并滚动回调，每帧最多读一次 scrollY；6px 的方向阈值用来过滤
+     触控板惯性滚动的细碎抖动，避免在临界点反复伸缩。
+     三种情况强制显示：页面顶部 96px 内、抽屉/下拉面板打开、向上滚动。
+     抽屉打开时必须显示 —— 遮罩是 fixed 且以 nav（backdrop-filter 使其成为
+     包含块）为参照，若此时把 nav 位移走，遮罩会跟着跑掉、点不中。 */
+  useEffect(() => {
+    if (!AUTO_HIDE) return
+    const nav = navRef.current
+    if (!nav) return
+    let lastY = window.scrollY
+    let raf = 0
+    const update = () => {
+      raf = 0
+      const y = window.scrollY
+      const dy = y - lastY
+      lastY = y
+      if (drawerOpen || open || y < 96) {
+        nav.classList.remove('nav-auto-hidden')
+      } else if (dy > 6) {
+        nav.classList.add('nav-auto-hidden')
+      } else if (dy < -6) {
+        nav.classList.remove('nav-auto-hidden')
+      }
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    update()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+      nav.classList.remove('nav-auto-hidden')
+    }
+  }, [AUTO_HIDE, drawerOpen, open])
 
   /* 菜单横向溢出检测。
      两个类各司其职，都必须实测而非媒体查询 ——

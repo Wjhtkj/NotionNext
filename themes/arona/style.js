@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unknown-property */
 import CONFIG from './config'
+import { siteConfig } from '@/lib/config'
 import { themeConsoleStyle } from '@/lib/themeConsoleStyle'
 /**
  * Endless647 主题全局样式
@@ -9,6 +10,15 @@ import { themeConsoleStyle } from '@/lib/themeConsoleStyle'
  * @returns
  */
 const Style = () => {
+  /* 2026-11-07 新增的六组动效，按配置逐段注入。
+     关掉某项时连 CSS 都不进页面，不给浏览器留无用的规则。 */
+  const motionCSS = [
+    siteConfig('ARONA_ROUTE_TRANSITION', true, CONFIG) ? MOTION_CSS.route : '',
+    siteConfig('ARONA_TOC_INDICATOR', true, CONFIG) ? MOTION_CSS.toc : '',
+    siteConfig('ARONA_CLICK_RIPPLE', true, CONFIG) ? MOTION_CSS.ripple : '',
+    siteConfig('ARONA_HEADING_LINE', true, CONFIG) ? MOTION_CSS.heading : '',
+    siteConfig('ARONA_TAG_FLOAT', true, CONFIG) ? MOTION_CSS.tagFloat : ''
+  ].join('\n')
   return <style jsx global>{`
     /* ==================================================================
        字体
@@ -616,7 +626,11 @@ const Style = () => {
       transition:
         background-color var(--arona-dur-slow) var(--arona-ease-inout),
         border-color var(--arona-dur-slow) var(--arona-ease-inout),
-        color var(--arona-dur-slow) var(--arona-ease-inout);
+        color var(--arona-dur-slow) var(--arona-ease-inout),
+        /* 这条规则特异性高于 nav 的常规 transition，换肤的 420ms 里
+           若不把 transform/opacity 继续列上，此刻滚动收起会硬跳。 */
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        opacity var(--arona-dur-fast) var(--arona-ease-inout);
     }
     /* 卡片类表面也要跟着变色，否则圆形揭幕 revealing 到它们时颜色是硬跳的。
        做法上的取舍：不新建 transition 列表，而是**沿用各表面自己的
@@ -696,8 +710,27 @@ const Style = () => {
       transition: none;
     }
 
-    /* 下拉菜单 */
-    .arona-header nav { position: relative; }
+    /* 下拉菜单的定位上下文其实在 .nav-actions（见 313 行注释），
+       nav 本身不需要 relative。这里原来写的 position:relative 是旧规则，
+       排在 283 行之后、把 nav 的 sticky 覆盖掉了 —— 线上实测 computed
+       position 就是 relative，滚动 72px 顶栏即离开视口。
+       恢复 sticky 后，顶栏在首屏横幅（75vh）区间内常驻，「随滚动收起」
+       才有可见的作用区间；越过横幅后仍随 header 滚走，不会全站固定
+       遮挡长文内容。宽度/居中完全沿用原盒模型，不改成 fixed。 */
+    .arona-header nav {
+      position: sticky;
+      transition:
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        opacity var(--arona-dur-fast) var(--arona-ease-inout);
+    }
+    /* 06 向下滚收起。抽屉/下拉打开时 Header.js 会强制摘掉这个类：
+       遮罩是 fixed 且以 nav（backdrop-filter 包含块）为参照，
+       nav 一移位遮罩就跟着跑，点不中。 */
+    .arona-header nav.nav-auto-hidden {
+      transform: translateY(-100%);
+      opacity: 0;
+      pointer-events: none;
+    }
     .arona-dropdown {
       position: absolute;
       z-index: 50;
@@ -2792,8 +2825,172 @@ const Style = () => {
       }
     }
 
+    ${motionCSS}
     ${themeConsoleStyle('arona', CONFIG)}
   `}</style>
+}
+
+/* ====================================================================
+   2026-11-07 新增动效（03 / 04 / 05 / 07 / 08）的样式段
+
+   拆成独立字符串由 Style 按开关注入，理由有两条：
+   · 每个开关都能真正把规则从页面里摘掉，而不是靠 display:none 盖住；
+   · 后续要单独回退某一组动效，删一段即可，不会碰到主体样式表。
+
+   统一约束：只用 transform / opacity（颜色仅作为静态背景，不进过渡），
+   时长与曲线全部走 --arona-dur-* / --arona-ease-*，
+   prefers-reduced-motion 由文件末尾的全局 !important 压制兜住。
+   ==================================================================== */
+const MOTION_CSS = {
+  /* 03 路由转场淡入 + 顶部细进度线
+     .arona-main 是整块主内容；headlessui 的 <Transition> 作用在它的子节点上，
+     父子各管一层 opacity，不会互相覆盖。 */
+  route: `
+    .arona-route-progress {
+      position: fixed; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--color-blue);
+      transform: scaleX(0); transform-origin: left center;
+      opacity: 0; pointer-events: none; z-index: 9999;
+    }
+    html.arona-route-leaving .arona-route-progress {
+      opacity: 1;
+      animation: arona-route-bar var(--arona-dur-slow) var(--arona-ease-out) forwards;
+    }
+    html.arona-route-done .arona-route-progress {
+      animation: arona-route-bar-done var(--arona-dur-fast) var(--arona-ease-out) forwards;
+    }
+    @keyframes arona-route-bar {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(0.75); }
+    }
+    @keyframes arona-route-bar-done {
+      from { transform: scaleX(0.75); opacity: 1; }
+      to   { transform: scaleX(1);    opacity: 0; }
+    }
+    .arona-main {
+      transition:
+        opacity var(--arona-dur-fast) var(--arona-ease-inout),
+        transform var(--arona-dur-fast) var(--arona-ease-out);
+    }
+    html.arona-route-leaving .arona-main {
+      opacity: 0.35;
+      transform: translateY(-6px);
+    }
+    html.arona-route-entering .arona-main {
+      animation: arona-route-in var(--arona-dur-base) var(--arona-ease-out) backwards;
+    }
+    @keyframes arona-route-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `,
+
+  /* 04 目录当前章节指示条
+     位置/高度由 Catalog.js 写进 --arona-toc-y / --arona-toc-s，
+     这里只负责把它们变成 transform，绝不碰 top / height。 */
+  toc: `
+    .arona-toc-body { position: relative; }
+    .arona-toc-indicator {
+      position: absolute; left: 0; top: 0;
+      width: 3px; height: 24px; border-radius: 2px;
+      background: var(--color-blue);
+      opacity: 0;
+      transform: translateY(var(--arona-toc-y, 0px)) scaleY(var(--arona-toc-s, 1));
+      transform-origin: top center;
+      transition:
+        transform var(--arona-dur-base) var(--arona-ease-out),
+        opacity var(--arona-dur-fast) var(--arona-ease-inout);
+      pointer-events: none; z-index: 2;
+    }
+    .arona-toc-indicator.is-ready { opacity: 1; }
+  `,
+
+  /* 05 点击涟漪
+     层与波纹都是 ClickRipple.js 动态创建的自有节点，
+     overflow 只加在层上，不碰被点控件的定位与裁剪。 */
+  ripple: `
+    .arona-ripple-layer {
+      position: fixed; overflow: hidden; pointer-events: none; z-index: 9998;
+    }
+    .arona-ripple-wave {
+      position: absolute; border-radius: 50%;
+      background: var(--color-blue);
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0.28;
+      animation: arona-ripple var(--arona-dur-slow) var(--arona-ease-out) forwards;
+    }
+    @keyframes arona-ripple {
+      to { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    }
+  `,
+
+  /* 07 标题下方细线绘制
+     .arona-list-heading 参与滚动进场，线必须等它 .arona-revealed 后再画，
+     否则会在 opacity:0 期间把动画白播掉；JS 未启用时基础态是 scaleX(1)，
+     内容永远不会少一条线。 */
+  heading: `
+    .arona-list-heading,
+    .arona-sidebar .arona-side-card .side-title { position: relative; }
+    .arona-toc-title { position: relative; display: inline-block; }
+    .arona-list-heading::after,
+    .arona-sidebar .arona-side-card .side-title::after,
+    .arona-toc-title::after {
+      content: ''; position: absolute; left: 0;
+      width: 42px; height: 2px; border-radius: 2px;
+      background: var(--color-blue);
+      transform-origin: left center;
+      transform: scaleX(1);
+    }
+    .arona-list-heading::after { bottom: 14px; }
+    .arona-sidebar .arona-side-card .side-title::after,
+    .arona-toc-title::after { bottom: -6px; }
+    html.arona-reveal-on .arona-list-heading::after { transform: scaleX(0); }
+    html.arona-reveal-on .arona-list-heading.arona-revealed::after {
+      animation: arona-line-draw var(--arona-dur-slow) var(--arona-ease-out) var(--arona-reveal-delay, 0ms) forwards;
+    }
+    .arona-sidebar .arona-side-card .side-title::after,
+    .arona-toc-title::after {
+      animation: arona-line-draw var(--arona-dur-slow) var(--arona-ease-out) 120ms backwards;
+    }
+    .arona-toc-title {
+      animation: arona-title-in var(--arona-dur-base) var(--arona-ease-out) backwards;
+    }
+    @keyframes arona-line-draw {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+    @keyframes arona-title-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `,
+
+  /* 08 标签云错相漂浮
+     浮动挂在内层 .arona-cloud-inner：外层 .arona-cloud-item 的
+     arona-reveal-up（进场）和 hover 的 translateY(-2px) 都在用 transform，
+     同一元素上再叠一个无限 animation 会把它们全盖掉。 */
+  tagFloat: `
+    .arona-cloud-inner {
+      display: inline-flex; align-items: center; gap: 6px;
+      animation: arona-cloud-float 3.6s var(--arona-ease-inout) infinite alternate;
+    }
+    .arona-tag-cloud .arona-cloud-item:nth-child(4n+2) .arona-cloud-inner {
+      animation-duration: 4.2s; animation-delay: -0.9s;
+    }
+    .arona-tag-cloud .arona-cloud-item:nth-child(4n+3) .arona-cloud-inner {
+      animation-duration: 3.2s; animation-delay: -1.8s;
+    }
+    .arona-tag-cloud .arona-cloud-item:nth-child(4n+4) .arona-cloud-inner {
+      animation-duration: 4.6s; animation-delay: -0.5s;
+    }
+    .arona-tag-cloud .arona-cloud-item:hover .arona-cloud-inner {
+      animation-play-state: paused;
+    }
+    @keyframes arona-cloud-float {
+      from { transform: translateY(2.5px); }
+      to   { transform: translateY(-2.5px); }
+    }
+  `
 }
 
 export { Style }

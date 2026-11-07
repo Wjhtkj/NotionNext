@@ -94,6 +94,14 @@ const CONFIG = {
   // 滚动进场 + 卡片鼠标跟随高光（components/ScrollReveal.js）
   ARONA_SCROLL_REVEAL: true,
 
+  // ===== 动效扩展（2026-11-07，均可单独关闭）=====
+  ARONA_ROUTE_TRANSITION: true, // 03 路由转场淡入 + 顶部细进度线
+  ARONA_TOC_INDICATOR: true,    // 04 目录当前章节指示条平滑滑动
+  ARONA_CLICK_RIPPLE: true,     // 05 可交互元素的点击涟漪
+  ARONA_NAV_AUTO_HIDE: true,    // 06 顶栏随滚动方向收起 / 恢复
+  ARONA_HEADING_LINE: true,     // 07 标题下方细线绘制
+  ARONA_TAG_FLOAT: true,        // 08 标签云错相漂浮
+
   // ===== Spine 看板娘 =====
   ARONA_SPINE_ENABLE: true,
   /* 参考站的 ARONA_SPINE_BASE / ARONA_SPINE_VOICE_LANG 在本主题里不生效：

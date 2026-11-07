@@ -18,10 +18,12 @@ import { BlogListPage } from './components/BlogListPage'
 import { BlogListScroll } from './components/BlogListScroll'
 import Catalog from './components/Catalog'
 import ClickFireworks from './components/ClickFireworks'
+import ClickRipple from './components/ClickRipple'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { PostLock } from './components/PostLock'
 import ReadingProgress from './components/ReadingProgress'
+import RouteTransition from './components/RouteTransition'
 import ScrollReveal from './components/ScrollReveal'
 import SearchInput from './components/SearchInput'
 import { SideBar } from './components/SideBar'
@@ -47,6 +49,8 @@ const LayoutBase = props => {
   const SHOW_PROGRESS = siteConfig('ARONA_READING_PROGRESS', true, CONFIG)
   const SHOW_TOTOP = siteConfig('ARONA_BACK_TO_TOP', true, CONFIG)
   const SHOW_REVEAL = siteConfig('ARONA_SCROLL_REVEAL', true, CONFIG)
+  const SHOW_ROUTE_TRANSITION = siteConfig('ARONA_ROUTE_TRANSITION', true, CONFIG)
+  const SHOW_CLICK_RIPPLE = siteConfig('ARONA_CLICK_RIPPLE', true, CONFIG)
 
   // 将 NotionNext 的深色状态同步到 <html> 的 class 与 theme 属性（供 CSS 变量切换）
   useEffect(() => {
@@ -79,6 +83,10 @@ const LayoutBase = props => {
       {SHOW_SPLASH && <Splash />}
       {/* 点击烟花 */}
       {SHOW_FIREWORKS && <ClickFireworks />}
+      {/* 点击涟漪（05，只在可交互元素内扩散，与烟花互补） */}
+      {SHOW_CLICK_RIPPLE && <ClickRipple />}
+      {/* 路由转场（03，进度线是这里唯一的 DOM） */}
+      {SHOW_ROUTE_TRANSITION && <RouteTransition />}
       {/* 阅读进度条 */}
       {SHOW_PROGRESS && <ReadingProgress />}
       {/* 滚动进场 + 卡片鼠标高光 */}
@@ -325,8 +333,12 @@ const LayoutCategoryIndex = props => {
       <div id='category-list' className='arona-tag-cloud'>
         {categoryOptions?.map(category => (
           <SmartLink key={category.name} href={`/category/${category.name}`} className='arona-cloud-item'>
-            <i className='fas fa-folder' />
-            {category.name}({category.count})
+            {/* 内层只承载错相漂浮（08）：外层的进场 animation 与 hover 的
+                transform 都挂在 .arona-cloud-item 上，三者不抢同一个属性。 */}
+            <span className='arona-cloud-inner'>
+              <i className='fas fa-folder' />
+              {category.name}({category.count})
+            </span>
           </SmartLink>
         ))}
       </div>
@@ -349,8 +361,10 @@ const LayoutTagIndex = props => {
             key={tag.name}
             href={`/tag/${encodeURIComponent(tag.name)}`}
             className={`arona-cloud-item notion-${tag.color}_background`}>
-            <i className='fas fa-tag' />
-            {tag.name + (tag.count ? `(${tag.count})` : '')}
+            <span className='arona-cloud-inner'>
+              <i className='fas fa-tag' />
+              {tag.name + (tag.count ? `(${tag.count})` : '')}
+            </span>
           </SmartLink>
         ))}
       </div>

@@ -48,6 +48,7 @@ const Catalog = ({ toc }) => {
 
   // 目录自动滚动
   const tRef = useRef(null)
+  const indicatorRef = useRef(null)
   const tocIds = useMemo(() => {
     const ids = []
     tree.forEach(t => {
@@ -106,6 +107,30 @@ const Catalog = ({ toc }) => {
     }
   }, [actionSectionScrollSpy])
 
+  /* 当前章节指示条（04）。
+     只在 activeSection / activeH2 变化时读一次布局（滚动 spy 本身是 200ms
+     节流，频率很低），不把 getBoundingClientRect 放进高频滚动回调。
+     位置与高度都写进 CSS 自定义属性，位移与缩放由 CSS 的 transform 完成 ——
+     不碰 height / top，避免每帧重排。 */
+  useEffect(() => {
+    const ind = indicatorRef.current
+    const body = tRef.current
+    if (!ind || !body) return
+    const active =
+      body.querySelector('.arona-toc-link.active') ||
+      body.querySelector('.arona-toc-level-2.is-current-h2 > .arona-toc-link')
+    if (!active) {
+      ind.classList.remove('is-ready')
+      return
+    }
+    const BASE = 24
+    const y = active.offsetTop + (active.offsetHeight - BASE) / 2
+    const scale = Math.max(0.45, Math.min(2.2, active.offsetHeight / BASE))
+    ind.style.setProperty('--arona-toc-y', `${y}px`)
+    ind.style.setProperty('--arona-toc-s', String(scale))
+    ind.classList.add('is-ready')
+  }, [activeSection, activeH2, tree])
+
   // 无目录就直接返回空
   if (!toc || toc.length < 1 || tree.length < 1) {
     return <></>
@@ -117,6 +142,7 @@ const Catalog = ({ toc }) => {
         <span className='arona-toc-title'>目录</span>
       </div>
       <div className='arona-toc-body' ref={tRef}>
+        <span className='arona-toc-indicator' ref={indicatorRef} aria-hidden='true' />
         <ul className='arona-toc-list'>
           {tree.map(node => (
             <li
