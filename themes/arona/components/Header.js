@@ -214,6 +214,31 @@ export const Header = props => {
     }
   }, [AUTO_HIDE, drawerOpen, open])
 
+  /* 把导航条的实测高度同步到根变量，供 Banner 欢迎框算顶部安全区。
+     nav 在「宽屏但菜单放不下」时会被子菜单撑到 132px（不是设计稿的
+     72px），字体加载完、Notion 菜单异步返回后还会再变 —— 写死数字
+     在某些屏幕比例下必然重叠，所以必须观察。
+     ResizeObserver 只在盒子尺寸变化时回调；收起用的是 transform，
+     不触发它，也不会反复写变量。 */
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    const root = document.documentElement
+    const sync = () => {
+      const h = nav.getBoundingClientRect().height
+      if (h > 0) root.style.setProperty('--arona-nav-h', `${Math.round(h)}px`)
+    }
+    sync()
+    const ro = new ResizeObserver(sync)
+    ro.observe(nav)
+    window.addEventListener('resize', sync)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', sync)
+      root.style.removeProperty('--arona-nav-h')
+    }
+  }, [])
+
   /* 菜单横向溢出检测。
      两个类各司其职，都必须实测而非媒体查询 ——
      菜单项数量由用户配置决定，同一断点下可能溢出也可能不溢出：

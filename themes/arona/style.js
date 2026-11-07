@@ -1226,6 +1226,13 @@ const Style = () => {
       top: 0; left: 0;
       z-index: 5;
       perspective: 1000px;
+      /* 顶部安全区：nav 是 sticky 常驻且 z-index 100，欢迎框整块垂直居中、
+         大字又靠 margin 上推，正好被导航压住（实测桌面被吃 28~144px）。
+         nav 高度由 Header.js 的 ResizeObserver 写进 --arona-nav-h；
+         回退值按「桌面 132 / 移动 64」分别给，保证 JS 水合前也大致对。
+         box-sizing 让 padding 计入 100% 高度，内容在剩余空间里居中。 */
+      box-sizing: border-box;
+      padding-top: calc(var(--arona-nav-h, 132px) + 12px);
     }
     .arona-welcome-box {
       display: flex;
@@ -1240,12 +1247,16 @@ const Style = () => {
         color var(--arona-dur-slow) var(--arona-ease-inout);
     }
     .arona-welcome-text {
-      font-size: max(64px, 4.5vw);
+      /* 字号与间距同时受宽度和高度约束。原来只按 vw：21:9 超宽下
+         会放大到 115px、矮窗口仍硬撑 64px，再配 128px 的下边距，
+         整组内容被顶出 75vh 横幅（1440x600 时大字甚至跑到视口外）。
+         clamp + min(vw, vh) 让它在宽屏和矮屏都自动收紧。 */
+      font-size: clamp(26px, min(4vw, 6vh), 72px);
       font-weight: bold;
       color: var(--welcome-text-color);
       text-shadow: var(--welcome-text-shadow);
       text-align: center;
-      margin-bottom: max(128px, 5vw);
+      margin-bottom: clamp(12px, min(3.5vw, 4.5vh), 48px);
       user-select: none;
     }
     .arona-info-box {
@@ -1332,7 +1343,20 @@ const Style = () => {
     }
     .arona-info-box .social:hover { filter: drop-shadow(0 0 5px var(--font-color-grey)); }
 
+    /* 矮窗口（如 1440x600 / 1280x720）：横幅只有 45~54vh，
+       扣掉导航安全区后放不下原尺寸的玻璃卡片，收紧内边距与头像。
+       限定 min-width:769px —— 移动端有自己的一套 vh 规则，
+       两边不能互相覆盖。 */
+    @media (max-height: 720px) and (min-width: 769px) {
+      .arona-info-box { padding: 3vh 2vw 2vh; }
+      .arona-info-box .avatar { width: 88px; height: 88px; }
+      .arona-info-box .name { font-size: 24px; margin-top: 1.5vh; }
+      .arona-info-box .motto { font-size: 14px; margin-top: 1.2vh; }
+      .arona-info-box ul { margin-top: 1.5vh; }
+    }
+
     @media (max-width: 768px) {
+      .arona-welcome-container { padding-top: calc(var(--arona-nav-h, 64px) + 12px); }
       .arona-welcome-text { font-size: 5vh; margin-bottom: 10vh; }
       .arona-info-box { padding: 5vh 6vw 2vh; width: 75vw; border-radius: 4vh; }
       .arona-info-box .avatar { width: 10vh; height: 10vh; }
