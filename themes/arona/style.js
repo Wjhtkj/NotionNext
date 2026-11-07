@@ -1007,7 +1007,6 @@ const Style = () => {
     .arona-reveal-on .arona-view-box {
       opacity: 0;
     }
-    .arona-reveal-on .arona-post-card.arona-revealed,
     .arona-reveal-on .arona-sidebar .arona-side-card.arona-revealed,
     .arona-reveal-on .arona-tag-cloud .arona-cloud-item.arona-revealed,
     .arona-reveal-on .arona-list-heading.arona-revealed,
@@ -1021,6 +1020,22 @@ const Style = () => {
     @keyframes arona-reveal-up {
       from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 文章卡片单独一套：淡入先完成、位移与收拢继续走完，
+       比「一条直线同步走完」更有落定感。scale 只到 .985，
+       肉眼看不出形变，但边缘会有「贴上去」的实感。
+       三段全程只用 transform / opacity，走合成层，不触发重排重绘；
+       播完 animation 即失效（backwards 不保留终态），
+       hover 的 transform 过渡照常接管，不会像 transition 那样残留延迟。 */
+    .arona-reveal-on .arona-post-card.arona-revealed {
+      opacity: 1;
+      animation: arona-card-enter var(--arona-dur-slow) var(--arona-ease-out) var(--arona-reveal-delay, 0ms) backwards;
+    }
+    @keyframes arona-card-enter {
+      0%   { opacity: 0; transform: translate3d(0, 22px, 0) scale(0.985); }
+      55%  { opacity: 1; }
+      100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
     }
 
     /* 鼠标跟随高光：指针坐标由 JS 写进 --mx / --my（百分比）。

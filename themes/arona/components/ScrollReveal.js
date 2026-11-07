@@ -10,8 +10,11 @@ import { useRouter } from 'next/router'
  *
  * 1) 进场（reveal）
  *    列表页/归档页/标签页的内容块（文章卡片、侧栏卡、标签云…）
- *    进入视口时淡入上移。同屏的多个同类元素按 DOM 顺序错峰 60ms，
- *    最多错 6 级，避免长列表最后一张等半年。
+ *    进入视口时淡入上移。错峰按「本次一起进入视口的这一批」算，
+ *    批内按视口上下顺序排、从 0 开始每级 70ms，最多 5 级 ——
+ *    无论滚到列表多靠后的位置，一批里的第一张总是立刻动，
+ *    不会像「按 DOM 全局序号」那样越往下越迟钝。
+ *    文章卡片与侧栏/标题各走一条独立节奏，避免左右两列互相打断。
  *
  * 2) 高光（sheen）
  *    鼠标在卡片上移动时，一层柔和的高光跟着指针走。
@@ -40,8 +43,8 @@ const REVEAL_SELECTOR = [
 /* 参与鼠标高光的元素。与进场列表不重叠也没关系 —— 各自独立 querySelectorAll。 */
 const SHEEN_SELECTOR = ['.arona-post-card', '.arona-sidebar .arona-side-card'].join(',')
 
-const STAGGER_MS = 60
-const STAGGER_MAX = 6
+const STAGGER_MS = 70
+const STAGGER_MAX = 5
 
 export const ScrollReveal = () => {
   const router = useRouter()
@@ -65,15 +68,45 @@ export const ScrollReveal = () => {
        等往回滚时它们从下方进入视口，IO 正常触发、正常播进场动画。
        真正要守住的不变量是「元素在视口内时绝不透明」，
        这一点由下面 scan() 里的同步首屏判定 + IO 的进入回调共同保证。 */
-    const io = new IntersectionObserver(
-      entries => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue
-          entry.target.classList.add('arona-revealed')
+    /* 一批元素一起进场时的统一出口：按它们在视口里的上下顺序排序，
+       再从 0 开始逐个给延迟。三条路径（首屏同步判定 / IO 回调 / 滚动兜底）
+       全都走这里，节奏才不会分叉。
+       排序复用已有的 rect.top、以及 IO 给的 boundingClientRect（缓存值，
+       不触发重排），不额外读布局。 */
+    const revealBatch = (batch, observer) => {
+      /* 主内容卡与侧栏/标题分两条节奏：它们处在不同的列，
+         混在一起按 top 排序会让左右两列的进场互相打断 ——
+         首屏第一张文章卡可能要排在几张侧栏卡之后才动。
+         拆开后两列各自从 0ms 起，形成两条干净的瀑布。 */
+      const cards = batch.filter(x => x.el.matches('.arona-post-card'))
+      const others = batch.filter(x => !x.el.matches('.arona-post-card'))
+      for (const group of [cards, others]) {
+        group.sort((a, b) => a.top - b.top)
+        group.forEach(({ el }, i) => {
+          el.style.setProperty(
+            '--arona-reveal-delay',
+            `${Math.min(i, STAGGER_MAX) * STAGGER_MS}ms`
+          )
+          el.classList.add('arona-revealed')
           // 进场后不再观察：元素可能被反复移出视口，
           // 继续观察会让它每次重新播一遍动画。
-          io.unobserve(entry.target)
+          if (observer) observer.unobserve(el)
+        })
+      }
+    }
+
+    const io = new IntersectionObserver(
+      entries => {
+        const batch = []
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          if (entry.target.classList.contains('arona-revealed')) {
+            io.unobserve(entry.target)
+            continue
+          }
+          batch.push({ el: entry.target, top: entry.boundingClientRect.top })
         }
+        if (batch.length) revealBatch(batch, io)
       },
       {
         // 底部留 8% 的负边距：元素真要「露头」才算进场，
@@ -94,35 +127,28 @@ export const ScrollReveal = () => {
     const bound = new WeakSet()
 
     const scan = () => {
+      const immediate = []
       const els = document.querySelectorAll(REVEAL_SELECTOR)
       for (const el of els) {
         if (el.classList.contains('arona-revealed')) continue
         if (bound.has(el)) continue
         bound.add(el)
 
-        // 错峰：按「同层同类元素」里的序号算延迟。
-        const parent = el.parentElement
-        if (parent) {
-          const siblings = Array.from(parent.children).filter(c =>
-            c.matches && c.matches(REVEAL_SELECTOR)
-          )
-          const idx = Math.max(0, siblings.indexOf(el))
-          el.style.setProperty('--arona-reveal-delay', `${Math.min(idx, STAGGER_MAX) * STAGGER_MS}ms`)
-        }
-
         /* 已经在视口内的元素必须当场标记为已进场，不能交给 IntersectionObserver。
            原因：html.arona-reveal-on 是本 effect 才加上的，加上的那一刻所有
            进场目标会同时变成 opacity:0；而 IO 的首批回调是异步的，
            首屏内容会先闪一下「可见 → 消失 → 淡入」。
-           这里同步读一次 boundingRect 兜住首屏，只有真正在下面的才去观察。 */
+           这里同步读一次 boundingRect 兜住首屏，只有真正在下面的才去观察。
+           视口内的收集成一批再统一错峰，delay 由 revealBatch 按视口顺序算。 */
         const rect = el.getBoundingClientRect()
         const inViewport = rect.top < window.innerHeight && rect.bottom > 0
         if (reduceMotion || inViewport) {
-          el.classList.add('arona-revealed')
+          immediate.push({ el, top: rect.top })
         } else {
           io.observe(el)
         }
       }
+      if (immediate.length) revealBatch(immediate, io)
     }
 
     scan()
@@ -133,14 +159,17 @@ export const ScrollReveal = () => {
     let fallbackRaf = 0
     const revealVisibleNow = () => {
       fallbackRaf = 0
+      const batch = []
       for (const el of document.querySelectorAll(REVEAL_SELECTOR)) {
         if (el.classList.contains('arona-revealed')) continue
         const rect = el.getBoundingClientRect()
         if (rect.top < window.innerHeight && rect.bottom > 0) {
-          el.classList.add('arona-revealed')
-          io.unobserve(el)
+          batch.push({ el, top: rect.top })
         }
       }
+      /* 兜底也要走批次错峰：IO 因任何原因没回调时，这批卡片不该
+         「啪」地一起亮，节奏要和正常进场保持一致。 */
+      if (batch.length) revealBatch(batch, io)
     }
     const scheduleFallback = () => {
       if (fallbackRaf) return
