@@ -444,6 +444,10 @@ const Style = () => {
 
     /* 带子菜单的父项（如 Notion 的「往期整理」） */
     .arona-header .menu li.has-sub { position: relative; }
+    /* 子菜单展开按钮：桌面端 hover 展开由 CSS 负责，按钮完全隐藏，
+       父项 <a> 保持为可直接跳转的链接。只有移动端抽屉里才显示
+       （规则在下方媒体查询中），避免把父项 click 拦成「只展开不跳转」。 */
+    .arona-header .menu li.has-sub > .sub-toggle { display: none; }
     .arona-header .menu li.has-sub > a { display: flex; align-items: center; gap: 6px; }
     .arona-header .menu li.has-sub > a .sub-arrow {
       font-size: 12px;
@@ -953,6 +957,31 @@ const Style = () => {
         font-size: 15px;
         border-radius: 10px;
       }
+      /* 父项右侧留出一个 44px 的命中区给展开按钮，
+         文字仍整行可点、点了就跳转。按钮用绝对定位贴右，
+         不参与 a 的 flex 流，桌面端子菜单布局完全不受影响。 */
+      .arona-header .menu li.has-sub { position: relative; }
+      .arona-header .menu li.has-sub > a { padding-right: 52px; box-sizing: border-box; }
+      .arona-header .menu li.has-sub > .sub-toggle {
+        display: flex;
+        position: absolute;
+        right: 6px;
+        top: 0;
+        width: 44px;
+        height: 46px;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        z-index: 2;
+      }
+      .arona-header .menu li.has-sub > .sub-toggle i {
+        transition: transform var(--arona-dur-base) var(--arona-ease-inout);
+      }
+      .arona-header .menu li.sub-expanded > .sub-toggle i { transform: rotate(180deg); }
       /* 子菜单默认收起，点父项才展开（accordion）。
          这里必须把桌面端那套绝对定位**全部重置**，漏一项就会整体偏移：
            · position → static（脱离 hover 时居中的绝对定位）

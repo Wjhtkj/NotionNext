@@ -10,6 +10,37 @@ import { DropdownMenu } from './DropdownMenu'
 import { ThemeToggle } from './ThemeToggle'
 
 /**
+ * 把 Notion 后台的菜单 href 收敛成「站内绝对路径 / 原样外链」两种。
+ * 后台 slug 没有强约束，实测踩过：
+ *   · "links"（缺前导斜杠）→ 在 /article/xxx 页面被解析成 /article/links，
+ *     点同一个菜单项在不同页面跳到不同地方；
+ *   · "https://站域/about" → 只要与 LINK 配置差一个尾斜杠，SmartLink 的
+ *     startsWith(LINK) 就判成外链，在新标签页打开；
+ *   · "#" / "/#" → 死链，交给下面的 isDead 兜底到第一个子菜单。
+ * 归一化必须在去重之前做，否则 "links" 与 "/links" 会被当成两个菜单项。
+ */
+const normalizeHref = href => {
+  if (typeof href !== 'string') return href
+  const raw = href.trim()
+  if (!raw) return ''
+  if (/^(https?:|mailto:|tel:)/i.test(raw)) {
+    try {
+      const LINK = siteConfig('LINK')
+      if (LINK && raw.startsWith(LINK.replace(/\/+$/, ''))) {
+        const u = new URL(raw)
+        return u.pathname + u.search + u.hash
+      }
+    } catch (e) {
+      /* 保留原绝对地址 */
+    }
+    return raw
+  }
+  // 保留 '#' / '/#' 原样，交给 isDead 兜底；别把它变成首页链接
+  if (/^\/?#?$/.test(raw)) return raw
+  return raw.startsWith('/') ? raw : `/${raw}`
+}
+
+/**
  * 玻璃拟态顶部导航（复刻 Endless647 Header.astro）
  * LOGO + 导航菜单 + 汉堡按钮 + 下拉面板
  * 菜单沿用 NotionNext 的既有菜单体系（含自定义菜单 customNav / customMenu）。
@@ -57,10 +88,25 @@ export const Header = props => {
       links.push(aboutLink)
     }
 
+    /* 先归一化再去重：Notion 里 Menu「友情链接」写 "links"、
+       Page 单页「友链」生成 "/links"，本来就是同一个目的地，
+       不归一化就会在顶栏出现两个几乎一样的入口。
+       子菜单同样要归一化，否则从文章页点「文章分类」会跳错。 */
+    const normalized = (links || []).map(l => {
+      if (!l) return l
+      return {
+        ...l,
+        href: normalizeHref(l.href),
+        subMenus: Array.isArray(l.subMenus)
+          ? l.subMenus.map(s => (s ? { ...s, href: normalizeHref(s.href) } : s))
+          : l.subMenus
+      }
+    })
+
     /* 兜底去重：Notion 后台若已配了同名项（如「关于」），
        追加后会出现两项，href 相同更会让用户以为点不动。 */
     const seen = new Set()
-    return (links || []).filter(l => {
+    return normalized.filter(l => {
       if (!l || l.show === false) return false
       const key = typeof l.href === 'string' && l.href ? l.href : JSON.stringify(l)
       if (seen.has(key)) return false
@@ -203,12 +249,23 @@ export const Header = props => {
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update)
     }
+    /* 收起后把指针移回视口顶部就恢复，不必先向上滚。
+       否则导航消失时用户把鼠标移到顶栏位置点击会完全没反应 ——
+       看起来就像「导航栏点不动」。只比较坐标、不读布局，
+       pointermove 再密集也只是两个判断。 */
+    const onPointerNearTop = e => {
+      if (e.clientY <= 24 && nav.classList.contains('nav-auto-hidden')) {
+        nav.classList.remove('nav-auto-hidden')
+      }
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', onScroll)
+    document.addEventListener('pointermove', onPointerNearTop, { passive: true })
     update()
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
+      document.removeEventListener('pointermove', onPointerNearTop)
       if (raf) cancelAnimationFrame(raf)
       nav.classList.remove('nav-auto-hidden')
     }
@@ -326,21 +383,16 @@ export const Header = props => {
         <span ref={menuRef} className='menu'>
           <ul ref={menuListRef}>
             {links.map((link, index) => {
-              /* Notion 的父级菜单（如「往期整理」）自身 href 常写成 "/#"、"#"、"/"，
-                 是个死链；真正可点的是它的 subMenus（如「历史归档」→ /archive）。
-                 若父项是死链，则把 href 兜底到第一个子菜单，点击父项也能真正跳转。 */
+              /* Notion 的父级菜单（如「往期整理」）自身 href 可能写成 "#"，
+                 是死链；后台已改成 /archive，这里仍保留兜底到第一个子菜单。 */
               const subs = Array.isArray(link.subMenus) ? link.subMenus.filter(s => s && s.show !== false && s.name) : []
               const isDead = /^\/?#?$/.test(link.href || '')
-              const parentHref = subs.length > 0 ? (isDead ? subs[0].href : link.href) : link.href
-              /* 抽屉（移动端）里父项只做展开/收起，不跳转 ——
-                 否则点「往期整理」会直接跳到第一个子项，
-                 想看另外两个子菜单就没法点了。
-                 宽屏下保持原样：hover 弹出子菜单，父项本身可点。 */
-              const onParentClick = e => {
-                if (!drawerOpen || subs.length === 0) return
-                e.preventDefault()
-                e.stopPropagation()
-                setExpandedSub(cur => (cur === index ? null : index))
+              const parentHref = subs.length > 0 && isDead ? subs[0].href : link.href
+              /* 点任意菜单项后收起抽屉。路由变化 effect 也会收，
+                 但点「当前页的同一链接」不触发路由事件，这里补上。 */
+              const closeDrawer = () => {
+                setDrawerOpen(false)
+                setExpandedSub(null)
               }
               return (
                 <li
@@ -351,17 +403,37 @@ export const Header = props => {
                   }>
                   <SmartLink
                     href={parentHref}
-                    onClick={onParentClick}
-                    className={isActive(link.href) ? 'active' : ''}
-                    aria-expanded={drawerOpen && subs.length > 0 ? expandedSub === index : undefined}>
+                    onClick={closeDrawer}
+                    className={isActive(link.href) ? 'active' : ''}>
                     {subs.length > 0 && <i className={`${link.icon || 'fas fa-angle-right'} sub-arrow`} aria-hidden='true' />}
                     {link.name}
                   </SmartLink>
+                  {/* 子菜单展开用独立按钮，父项文字永远是链接、点了就跳。
+                      原来在抽屉里把父项 click 直接 preventDefault 成「只展开」，
+                      移动端点「往期整理」URL 完全不变，用户只会看到没反应。
+                      独立按钮也让 aria-expanded 有明确的宿主，键盘可聚焦。 */}
+                  {subs.length > 0 && (
+                    <button
+                      type='button'
+                      className='sub-toggle'
+                      aria-label={`${expandedSub === index ? '收起' : '展开'}${link.name}子菜单`}
+                      aria-expanded={drawerOpen && expandedSub === index}
+                      onClick={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setExpandedSub(cur => (cur === index ? null : index))
+                      }}>
+                      <i className='fas fa-angle-down' aria-hidden='true' />
+                    </button>
+                  )}
                   {subs.length > 0 && (
                     <ul className='sub-menu'>
                       {subs.map((sub, i) => (
                         <li key={sub.id || i}>
-                          <SmartLink href={sub.href} className={isActive(sub.href) ? 'active' : ''}>
+                          <SmartLink
+                            href={sub.href}
+                            onClick={closeDrawer}
+                            className={isActive(sub.href) ? 'active' : ''}>
                             {sub.icon && <i className={`${sub.icon} sub-icon`} aria-hidden='true' />}
                             {sub.name}
                           </SmartLink>
