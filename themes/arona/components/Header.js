@@ -106,11 +106,23 @@ export const Header = props => {
     /* 兜底去重：Notion 后台若已配了同名项（如「关于」），
        追加后会出现两项，href 相同更会让用户以为点不动。 */
     const seen = new Set()
+    const keptByKey = new Map()
     return normalized.filter(l => {
       if (!l || l.show === false) return false
       const key = typeof l.href === 'string' && l.href ? l.href : JSON.stringify(l)
-      if (seen.has(key)) return false
+      if (seen.has(key)) {
+        /* 被折叠掉的项如果带着一整组子菜单，必须把子菜单转交给保留项。
+           踩过的坑：Notion 里 Menu「友情链接」与 Page 单页「友链」都指向
+           /links，去重删掉前者时，挂在它下面的「历史归档/文章分类/文章标签」
+           三个子项一起消失，而且线上没有任何报错。 */
+        const keep = keptByKey.get(key)
+        if (keep && Array.isArray(l.subMenus) && l.subMenus.length > 0) {
+          keep.subMenus = [...(keep.subMenus || []), ...l.subMenus]
+        }
+        return false
+      }
       seen.add(key)
+      keptByKey.set(key, l)
       return true
     })
   }
