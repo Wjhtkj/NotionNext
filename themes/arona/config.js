@@ -106,6 +106,9 @@ const CONFIG = {
   ARONA_POINTER_GLOW: true,     // 09 指针柔光跟随 + 玻璃卡片磁吸倾斜
   ARONA_READING_FLOW: true,     // 10 阅读流：段落焦点提亮 + 正文图片/代码块落定
   ARONA_COUNTER_BREATH: true,   // 11 细节呼吸：图标弹跳 + 归档描线 + 数字滚动
+  ARONA_LINK_MICRO: true,       // 12 链接微交互：下划线划入 + 标题锚点浮现与复制
+  ARONA_NAV_STAGGER: true,      // 13 导航子菜单逐项错峰展开
+  ARONA_404_EGG: true,          // 14 404 页彩蛋：图片漂浮 + 文案逐字浮现
 
   // ===== Spine 看板娘 =====
   ARONA_SPINE_ENABLE: true,

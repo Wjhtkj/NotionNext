@@ -20,7 +20,10 @@ const Style = () => {
     siteConfig('ARONA_TAG_FLOAT', true, CONFIG) ? MOTION_CSS.tagFloat : '',
     siteConfig('ARONA_POINTER_GLOW', true, CONFIG) ? MOTION_CSS.pointer : '',
     siteConfig('ARONA_READING_FLOW', true, CONFIG) ? MOTION_CSS.reading : '',
-    siteConfig('ARONA_COUNTER_BREATH', true, CONFIG) ? MOTION_CSS.detail : ''
+    siteConfig('ARONA_COUNTER_BREATH', true, CONFIG) ? MOTION_CSS.detail : '',
+    siteConfig('ARONA_LINK_MICRO', true, CONFIG) ? MOTION_CSS.linkMicro : '',
+    siteConfig('ARONA_NAV_STAGGER', true, CONFIG) ? MOTION_CSS.navStagger : '',
+    siteConfig('ARONA_404_EGG', true, CONFIG) ? MOTION_CSS.egg404 : ''
   ].join('\n')
   return <style jsx global>{`
     /* ==================================================================
@@ -3205,6 +3208,162 @@ const MOTION_CSS = {
     .arona-count {
       display: inline-block;
       font-variant-numeric: tabular-nums;
+    }
+  `,
+
+  /* 12 链接微交互：正文下划线划入 + 标题锚点浮现
+     ------------------------------------------------------------------
+     行内链接可能跨行折行，::after 伪元素只会画在最后一个行盒上，
+     所以用 background 渐变线做下划线 —— background-size 只触发重绘
+     （paint），不触发重排（layout），是本动效体系里唯一的例外，
+     其余仍全是 transform / opacity。
+     标题 # 锚点是 react-notion-x 自带的 .notion-hash-link（在标题
+     内部、标题文字之前渲染），这里用 flex + order 把它挪到文字后面，
+     hover 时才浮现；点击复制由 LinkMicro.js 负责。 */
+  linkMicro: `
+    .arona-content a:not(.notion-hash-link) {
+      text-decoration: none;
+      background-image: linear-gradient(currentColor, currentColor);
+      background-repeat: no-repeat;
+      background-position: 0 100%;
+      background-size: 0% 1.5px;
+      transition: background-size var(--arona-dur-base) var(--arona-ease-out);
+    }
+    .arona-content a:not(.notion-hash-link):hover {
+      background-size: 100% 1.5px;
+    }
+    /* 标题结构：[div.notion-header-anchor(空，滚动锚点)] [a.notion-hash-link] [span.notion-h-title]
+       flex 重排后视觉顺序变为 文字 → # ；header-anchor 绝对定位不占位。 */
+    .arona-content .notion-h { display: flex; align-items: baseline; }
+    .arona-content .notion-h .notion-header-anchor {
+      position: absolute;
+      width: 0; height: 0; overflow: hidden;
+    }
+    .arona-content .notion-h .notion-hash-link {
+      order: 2;
+      margin-left: 8px;
+      color: var(--color-blue);
+      opacity: 0;
+      transform: translateX(-4px);
+      transition:
+        opacity var(--arona-dur-fast) var(--arona-ease-out),
+        transform var(--arona-dur-fast) var(--arona-ease-out);
+    }
+    .arona-content .notion-h:hover .notion-hash-link,
+    .arona-content .notion-h .notion-hash-link:focus-visible {
+      opacity: 1;
+      transform: none;
+    }
+    .arona-content .notion-h .notion-hash-link svg { width: 14px; height: 14px; display: block; }
+    /* 复制成功的提示条（LinkMicro.js 动态插入，播完自动移除） */
+    .arona-copy-tip {
+      position: absolute;
+      right: 0; top: calc(100% + 2px);
+      font-size: 12px; line-height: 1;
+      padding: 5px 8px; border-radius: 8px;
+      background: var(--color-blue);
+      color: #fff;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      animation: arona-copy-tip var(--arona-dur-slow) var(--arona-ease-out) forwards;
+      z-index: 20;
+    }
+    @keyframes arona-copy-tip {
+      0%   { opacity: 0; transform: translateY(4px); }
+      15%  { opacity: 1; transform: translateY(0); }
+      75%  { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-4px); }
+    }
+  `,
+
+  /* 13 导航子菜单逐项错峰
+     ------------------------------------------------------------------
+     桌面端用 transition-delay：延迟只定义在 :hover 展开态里，
+     鼠标离开时兜底规则（无延迟）接管 → 关闭瞬时、打开错峰。
+     整段包在 @media (hover:hover) 里 —— 触屏设备上子菜单是常驻
+     展示的（见主体样式 502 行），不展开态的 opacity:0 会把它藏死。
+     移动端抽屉用 animation：display:none→block 会让 animation
+     重新播放，天然就是「每次展开都重放」。 */
+  navStagger: `
+    @media (hover: hover) {
+      .arona-header .menu li.has-sub > .sub-menu li {
+        opacity: 0;
+        transform: translateY(6px);
+        transition:
+          opacity var(--arona-dur-fast) var(--arona-ease-out),
+          transform var(--arona-dur-fast) var(--arona-ease-out);
+      }
+      .arona-header .menu li.has-sub:hover > .sub-menu li,
+      .arona-header .menu li.has-sub:focus-within > .sub-menu li {
+        opacity: 1;
+        transform: none;
+        transition-delay: 0ms;
+      }
+      .arona-header .menu li.has-sub:hover > .sub-menu li:nth-child(2),
+      .arona-header .menu li.has-sub:focus-within > .sub-menu li:nth-child(2) { transition-delay: 45ms; }
+      .arona-header .menu li.has-sub:hover > .sub-menu li:nth-child(3),
+      .arona-header .menu li.has-sub:focus-within > .sub-menu li:nth-child(3) { transition-delay: 90ms; }
+      .arona-header .menu li.has-sub:hover > .sub-menu li:nth-child(4),
+      .arona-header .menu li.has-sub:focus-within > .sub-menu li:nth-child(4) { transition-delay: 135ms; }
+      .arona-header .menu li.has-sub:hover > .sub-menu li:nth-child(5),
+      .arona-header .menu li.has-sub:focus-within > .sub-menu li:nth-child(5) { transition-delay: 180ms; }
+      .arona-header .menu li.has-sub:hover > .sub-menu li:nth-child(n+6),
+      .arona-header .menu li.has-sub:focus-within > .sub-menu li:nth-child(n+6) { transition-delay: 225ms; }
+    }
+
+    .arona-header.menu-drawer-open .menu li.sub-expanded > .sub-menu li {
+      animation: arona-sub-item var(--arona-dur-base) var(--arona-ease-out) backwards;
+    }
+    .arona-header.menu-drawer-open .menu li.sub-expanded > .sub-menu li:nth-child(2) { animation-delay: 45ms; }
+    .arona-header.menu-drawer-open .menu li.sub-expanded > .sub-menu li:nth-child(3) { animation-delay: 90ms; }
+    .arona-header.menu-drawer-open .menu li.sub-expanded > .sub-menu li:nth-child(4) { animation-delay: 135ms; }
+    .arona-header.menu-drawer-open .menu li.sub-expanded > .sub-menu li:nth-child(n+5) { animation-delay: 180ms; }
+    @keyframes arona-sub-item {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* 汉堡面板（DropdownMenu）展开时条目同样错峰 */
+    .arona-dropdown[data-show='true'] .menu-content > * {
+      animation: arona-sub-item var(--arona-dur-base) var(--arona-ease-out) backwards;
+    }
+    .arona-dropdown[data-show='true'] .menu-content > *:nth-child(2) { animation-delay: 45ms; }
+    .arona-dropdown[data-show='true'] .menu-content > *:nth-child(3) { animation-delay: 90ms; }
+    .arona-dropdown[data-show='true'] .menu-content > *:nth-child(n+4) { animation-delay: 135ms; }
+  `,
+
+  /* 14 404 页彩蛋：图片漂浮 + 数字弹入 + 文案逐字浮现
+     ------------------------------------------------------------------
+     页面 3 秒后自动跳回首页（index.js Layout404 的 setTimeout），
+     所以全部延迟压在 1.3s 内完成。图片漂浮是无限循环，
+     动画时长需要超过 token 的三档，写死 2.6s（与 Splash 呼吸同理）。 */
+  egg404: `
+    .arona-404-img {
+      animation: arona-404-float 2.6s ease-in-out infinite alternate;
+    }
+    @keyframes arona-404-float {
+      from { transform: translateY(0) rotate(0deg); }
+      to   { transform: translateY(-8px) rotate(-0.6deg); }
+    }
+    .arona-404-digit {
+      display: inline-block;
+      animation: arona-404-pop var(--arona-dur-slow) var(--arona-ease-spring) backwards;
+    }
+    .arona-404-digit:nth-child(2) { animation-delay: 110ms; }
+    .arona-404-digit:nth-child(3) { animation-delay: 220ms; }
+    @keyframes arona-404-pop {
+      0%   { opacity: 0; transform: translateY(16px) scale(0.8); }
+      60%  { opacity: 1; transform: translateY(-3px) scale(1.08); }
+      100% { opacity: 1; transform: none; }
+    }
+    .arona-404-char {
+      display: inline-block;
+      animation: arona-404-char-in var(--arona-dur-base) var(--arona-ease-out) backwards;
+    }
+    @keyframes arona-404-char-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: none; }
     }
   `
 }

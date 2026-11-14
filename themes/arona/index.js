@@ -22,6 +22,7 @@ import ClickRipple from './components/ClickRipple'
 import { DetailBreath } from './components/DetailBreath'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
+import LinkMicro from './components/LinkMicro'
 import { PointerGlow } from './components/PointerGlow'
 import { PostLock } from './components/PostLock'
 import { ReadingFlow } from './components/ReadingFlow'
@@ -57,6 +58,7 @@ const LayoutBase = props => {
   const SHOW_POINTER_GLOW = siteConfig('ARONA_POINTER_GLOW', true, CONFIG)
   const SHOW_READING_FLOW = siteConfig('ARONA_READING_FLOW', true, CONFIG)
   const SHOW_COUNTER_BREATH = siteConfig('ARONA_COUNTER_BREATH', true, CONFIG)
+  const SHOW_LINK_MICRO = siteConfig('ARONA_LINK_MICRO', true, CONFIG)
 
   // 将 NotionNext 的深色状态同步到 <html> 的 class 与 theme 属性（供 CSS 变量切换）
   useEffect(() => {
@@ -103,6 +105,8 @@ const LayoutBase = props => {
       {SHOW_READING_FLOW && <ReadingFlow />}
       {/* 细节呼吸：字数 / 阅读时长滚动落定（11） */}
       {SHOW_COUNTER_BREATH && <DetailBreath />}
+      {/* 链接微交互：标题 # 锚点点击复制（12，下划线部分纯 CSS） */}
+      {SHOW_LINK_MICRO && <LinkMicro />}
       {/* Spine 看板娘 */}
       {SHOW_SPINE && <SpinePlayer />}
 
@@ -275,9 +279,21 @@ const Layout404 = props => {
       <div className='arona-404-text'>
         <h2>
           <i className='mr-2 fas fa-spinner animate-spin' />
-          404
+          <span className='arona-404-digits'>
+            {'404'.split('').map((d, i) => (
+              <span key={i} className='arona-404-digit'>{d}</span>
+            ))}
+          </span>
         </h2>
-        <p>页面无法加载，即将返回首页</p>
+        {/* 文案逐字浮现（14）：延迟在 CSS 侧压在 1.3s 内，
+            页面 3 秒后自动跳首页，动画必须先播完 */}
+        <p className='arona-404-sub'>
+          {'页面无法加载，即将返回首页'.split('').map((c, i) => (
+            <span key={i} className='arona-404-char' style={{ animationDelay: `${420 + i * 45}ms` }}>
+              {c}
+            </span>
+          ))}
+        </p>
       </div>
     </div>
   )
