@@ -17,7 +17,10 @@ const Style = () => {
     siteConfig('ARONA_TOC_INDICATOR', true, CONFIG) ? MOTION_CSS.toc : '',
     siteConfig('ARONA_CLICK_RIPPLE', true, CONFIG) ? MOTION_CSS.ripple : '',
     siteConfig('ARONA_HEADING_LINE', true, CONFIG) ? MOTION_CSS.heading : '',
-    siteConfig('ARONA_TAG_FLOAT', true, CONFIG) ? MOTION_CSS.tagFloat : ''
+    siteConfig('ARONA_TAG_FLOAT', true, CONFIG) ? MOTION_CSS.tagFloat : '',
+    siteConfig('ARONA_POINTER_GLOW', true, CONFIG) ? MOTION_CSS.pointer : '',
+    siteConfig('ARONA_READING_FLOW', true, CONFIG) ? MOTION_CSS.reading : '',
+    siteConfig('ARONA_COUNTER_BREATH', true, CONFIG) ? MOTION_CSS.detail : ''
   ].join('\n')
   return <style jsx global>{`
     /* ==================================================================
@@ -3042,6 +3045,166 @@ const MOTION_CSS = {
     @keyframes arona-cloud-float {
       from { transform: translateY(2.5px); }
       to   { transform: translateY(-2.5px); }
+    }
+  `,
+
+  /* 09 指针柔光 + 玻璃卡片磁吸倾斜
+     ------------------------------------------------------------------
+     柔光挂成 #theme-arona::before，而不是新加一层 DOM：
+     伪元素是根元素的第一个子层，天然压在卡片之下 —— 既不用为层级
+     写 z-index 战争，也不会多一个节点参与 diff。
+     坐标 --arona-pointer-x / -y 由 PointerGlow.js 每帧写一次（px），
+     这里是纯 background 取值，不做任何过渡 —— 光斑「跟手」靠的是
+     渐变中心移动，不是动画，所以不会掉帧。
+
+     倾斜必须并进已有的 hover transform：.arona-post-card:hover 在主体
+     样式里写的是 translateY(-4px)，同属性写两条规则后写的赢，
+     分开写会把浮升效果整条盖掉。perspective 也写在 transform 里
+     而不是给容器加透视 —— 后者会新增包含块与层叠上下文。 */
+  pointer: `
+    #theme-arona::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background: radial-gradient(
+        520px circle at var(--arona-pointer-x, 50%) var(--arona-pointer-y, -20%),
+        rgba(18, 138, 250, 0.1),
+        transparent 62%
+      );
+      opacity: 0;
+      transition: opacity var(--arona-dur-slow) var(--arona-ease-out);
+    }
+    html.dark #theme-arona::before,
+    html[theme='dark'] #theme-arona::before {
+      background: radial-gradient(
+        520px circle at var(--arona-pointer-x, 50%) var(--arona-pointer-y, -20%),
+        rgba(147, 197, 253, 0.1),
+        transparent 62%
+      );
+    }
+    #theme-arona.arona-pointer-on::before { opacity: 1; }
+
+    .arona-post-card { --arona-tilt-x: 0deg; --arona-tilt-y: 0deg; }
+    .arona-sidebar .arona-side-card {
+      --arona-tilt-x: 0deg; --arona-tilt-y: 0deg;
+      transform: perspective(900px) rotateX(var(--arona-tilt-x)) rotateY(var(--arona-tilt-y));
+      transition: transform var(--arona-dur-slow) var(--arona-ease-out);
+    }
+    /* 必须带 translateY(-4px)：这条规则后写，会把主体样式里
+       那条 hover 完全顶掉，不写就等于取消浮升。 */
+    .arona-post-card:hover {
+      transform: perspective(900px) translateY(-4px)
+        rotateX(var(--arona-tilt-x)) rotateY(var(--arona-tilt-y));
+    }
+    /* 上面那条是同权重、后写的，会盖掉主体样式里 reduced-motion 的
+       「hover 不位移」兜底 —— 必须在这里再压一次，否则开了系统
+       「减少动态效果」的用户 hover 依旧会浮起来。 */
+    @media (prefers-reduced-motion: reduce) {
+      .arona-post-card:hover,
+      .arona-sidebar .arona-side-card { transform: none; }
+    }
+  `,
+
+  /* 10 阅读流：段落焦点提亮 + 正文大块落定
+     ------------------------------------------------------------------
+     焦点段落由 ReadingFlow.js 打 .is-reading（IO 只在视口中线附近
+     那条窄带里命中），这里只做颜色过渡 —— color 不触发重排，
+     整篇几百段一起换色也不会掉帧。
+
+     正文图片 / 代码块 / figure 的初始隐藏态挂在 html.arona-reading-on
+     之下，而这个类由 JS 扫完一轮之后才加：脚本没跑内容就是正常可见的，
+     不会出现「图片永远透明」。 */
+  reading: `
+    #theme-arona { --arona-reading-color: #1f2a36; }
+    html.dark #theme-arona,
+    html[theme='dark'] #theme-arona { --arona-reading-color: #ececf8; }
+
+    #article-wrapper p,
+    #article-wrapper li,
+    #article-wrapper blockquote {
+      transition: color var(--arona-dur-slow) var(--arona-ease-inout);
+    }
+    #article-wrapper .is-reading { color: var(--arona-reading-color); }
+
+    html.arona-reading-on #article-wrapper figure,
+    html.arona-reading-on #article-wrapper pre,
+    html.arona-reading-on #article-wrapper img {
+      opacity: 0;
+      transform: scale(1.02) translateY(10px);
+      transition:
+        opacity var(--arona-dur-slow) var(--arona-ease-out),
+        transform var(--arona-dur-slow) var(--arona-ease-out);
+    }
+    html.arona-reading-on #article-wrapper .is-in {
+      opacity: 1;
+      transform: none;
+    }
+  `,
+
+  /* 11 细节呼吸：卡片图标弹跳 / 归档描线 / 数字滚动
+     ------------------------------------------------------------------
+     图标弹跳与归档线都是一次性 animation，播完即失效 ——
+     不占 transform，之后 hover 的过渡照常接管。
+     归档条目左侧那条竖线原来是 tailwind 的 border-l-2（静态色），
+     这里把 border 让出去（设为透明），改用 ::before 从顶端 scaleY 生长，
+     两者不会叠成一条双线。 */
+  detail: `
+    .arona-revealed .meta-info-bar .meta-icon i {
+      display: inline-block;
+      animation: arona-icon-pop var(--arona-dur-base) var(--arona-ease-spring) backwards;
+    }
+    .arona-revealed .meta-info-bar .meta-icon:nth-of-type(2) i { animation-delay: 60ms; }
+    .arona-revealed .meta-info-bar .meta-icon:nth-of-type(3) i { animation-delay: 120ms; }
+    @keyframes arona-icon-pop {
+      0%   { opacity: 0; transform: scale(0.7) rotate(-8deg); }
+      60%  { opacity: 1; transform: scale(1.12) rotate(2deg); }
+      100% { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+
+    .arona-archive-title { position: relative; }
+    .arona-archive-title::after {
+      content: '';
+      position: absolute; left: 0; bottom: 0;
+      width: 42px; height: 2px; border-radius: 2px;
+      background: var(--color-blue);
+      transform-origin: left center;
+      animation: arona-detail-line var(--arona-dur-slow) var(--arona-ease-out) backwards;
+    }
+    @keyframes arona-detail-line {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+
+    .arona-archive-item { position: relative; border-left-color: transparent !important; }
+    .arona-archive-item::before {
+      content: '';
+      /* left 取 -2px：绝对定位的参照是 padding box，而原来那条竖线
+         是 2px 的 border-left，长在 padding box 之外。不减这一下，
+         新线会比原来右移 2px，和上下条目对不齐。 */
+      position: absolute; left: -2px; top: 0; bottom: 0;
+      width: 2px; border-radius: 1px;
+      background: var(--color-blue);
+      transform-origin: top center;
+      animation: arona-archive-line var(--arona-dur-base) var(--arona-ease-out) backwards;
+    }
+    @keyframes arona-archive-line {
+      from { transform: scaleY(0); }
+      to   { transform: scaleY(1); }
+    }
+    .arona-archive-item:nth-child(2)::before { animation-delay: 50ms; }
+    .arona-archive-item:nth-child(3)::before { animation-delay: 100ms; }
+    .arona-archive-item:nth-child(4)::before { animation-delay: 150ms; }
+    .arona-archive-item:nth-child(5)::before { animation-delay: 200ms; }
+    .arona-archive-item:nth-child(6)::before { animation-delay: 250ms; }
+    .arona-archive-item:nth-child(7)::before { animation-delay: 300ms; }
+    .arona-archive-item:nth-child(8)::before { animation-delay: 350ms; }
+    .arona-archive-item:nth-child(n+9)::before { animation-delay: 400ms; }
+
+    .arona-count {
+      display: inline-block;
+      font-variant-numeric: tabular-nums;
     }
   `
 }

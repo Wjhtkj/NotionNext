@@ -19,9 +19,12 @@ import { BlogListScroll } from './components/BlogListScroll'
 import Catalog from './components/Catalog'
 import ClickFireworks from './components/ClickFireworks'
 import ClickRipple from './components/ClickRipple'
+import { DetailBreath } from './components/DetailBreath'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
+import { PointerGlow } from './components/PointerGlow'
 import { PostLock } from './components/PostLock'
+import { ReadingFlow } from './components/ReadingFlow'
 import ReadingProgress from './components/ReadingProgress'
 import RouteTransition from './components/RouteTransition'
 import ScrollReveal from './components/ScrollReveal'
@@ -51,6 +54,9 @@ const LayoutBase = props => {
   const SHOW_REVEAL = siteConfig('ARONA_SCROLL_REVEAL', true, CONFIG)
   const SHOW_ROUTE_TRANSITION = siteConfig('ARONA_ROUTE_TRANSITION', true, CONFIG)
   const SHOW_CLICK_RIPPLE = siteConfig('ARONA_CLICK_RIPPLE', true, CONFIG)
+  const SHOW_POINTER_GLOW = siteConfig('ARONA_POINTER_GLOW', true, CONFIG)
+  const SHOW_READING_FLOW = siteConfig('ARONA_READING_FLOW', true, CONFIG)
+  const SHOW_COUNTER_BREATH = siteConfig('ARONA_COUNTER_BREATH', true, CONFIG)
 
   // 将 NotionNext 的深色状态同步到 <html> 的 class 与 theme 属性（供 CSS 变量切换）
   useEffect(() => {
@@ -91,6 +97,12 @@ const LayoutBase = props => {
       {SHOW_PROGRESS && <ReadingProgress />}
       {/* 滚动进场 + 卡片鼠标高光 */}
       {SHOW_REVEAL && <ScrollReveal />}
+      {/* 指针柔光 + 玻璃卡片磁吸倾斜（09，仅精确指针设备） */}
+      {SHOW_POINTER_GLOW && <PointerGlow />}
+      {/* 阅读流：段落焦点提亮 + 正文大块落定（10，仅文章页有目标） */}
+      {SHOW_READING_FLOW && <ReadingFlow />}
+      {/* 细节呼吸：字数 / 阅读时长滚动落定（11） */}
+      {SHOW_COUNTER_BREATH && <DetailBreath />}
       {/* Spine 看板娘 */}
       {SHOW_SPINE && <SpinePlayer />}
 
@@ -337,7 +349,11 @@ const LayoutCategoryIndex = props => {
                 transform 都挂在 .arona-cloud-item 上，三者不抢同一个属性。 */}
             <span className='arona-cloud-inner'>
               <i className='fas fa-folder' />
-              {category.name}({category.count})
+              {category.name}(
+              <span className='arona-count' data-arona-count={category.count}>
+                {category.count}
+              </span>
+              )
             </span>
           </SmartLink>
         ))}
@@ -363,7 +379,16 @@ const LayoutTagIndex = props => {
             className={`arona-cloud-item notion-${tag.color}_background`}>
             <span className='arona-cloud-inner'>
               <i className='fas fa-tag' />
-              {tag.name + (tag.count ? `(${tag.count})` : '')}
+              {tag.name}
+              {tag.count ? (
+                <>
+                  (
+                  <span className='arona-count' data-arona-count={tag.count}>
+                    {tag.count}
+                  </span>
+                  )
+                </>
+              ) : null}
             </span>
           </SmartLink>
         ))}

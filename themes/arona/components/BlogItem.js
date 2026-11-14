@@ -51,12 +51,25 @@ const BlogItem = ({ post }) => {
                 <span className='meta-icon'>
                   <i className='fas fa-file-alt' />
                 </span>
-                <span>{post.wordCount} 字</span>
+                <span>
+                  {/* data-arona-count 供 DetailBreath.js 做「从 0 数上去」的
+                      滚动落定；没有 JS 时这里就是服务端渲染的最终值 */}
+                  <span className='arona-count' data-arona-count={post.wordCount}>
+                    {post.wordCount}
+                  </span>{' '}
+                  字
+                </span>
                 <span className='sep' />
                 <span className='meta-icon'>
                   <i className='fas fa-mug-hot' />
                 </span>
-                <span>预计 {post.readTime || 1} 分钟</span>
+                <span>
+                  预计{' '}
+                  <span className='arona-count' data-arona-count={post.readTime || 1}>
+                    {post.readTime || 1}
+                  </span>{' '}
+                  分钟
+                </span>
               </>
             ) : null}
             {post.category && (

@@ -102,6 +102,11 @@ const CONFIG = {
   ARONA_HEADING_LINE: true,     // 07 标题下方细线绘制
   ARONA_TAG_FLOAT: true,        // 08 标签云错相漂浮
 
+  // ===== 动效扩展（2026-11-14，均可单独关闭）=====
+  ARONA_POINTER_GLOW: true,     // 09 指针柔光跟随 + 玻璃卡片磁吸倾斜
+  ARONA_READING_FLOW: true,     // 10 阅读流：段落焦点提亮 + 正文图片/代码块落定
+  ARONA_COUNTER_BREATH: true,   // 11 细节呼吸：图标弹跳 + 归档描线 + 数字滚动
+
   // ===== Spine 看板娘 =====
   ARONA_SPINE_ENABLE: true,
   /* 参考站的 ARONA_SPINE_BASE / ARONA_SPINE_VOICE_LANG 在本主题里不生效：
